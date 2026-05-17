@@ -3,7 +3,7 @@ export type JsonValue = null | boolean | number | string | JsonValue[] | { [key:
 export type JsonObject = { [key: string]: JsonValue };
 export type MappingKind = 'payload' | 'facts' | 'result';
 export type PipelineItemType = 'MAPPINGS' | 'RULES' | 'DECISIONS';
-export type TraceMode = false | 'basic' | 'verbose';
+export type TraceMode = 'off' | 'basic' | 'verbose';
 
 export interface DataflowInputContract { ref: PathRef; }
 

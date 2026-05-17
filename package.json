@@ -27,7 +27,7 @@
     "pretest": "npm run build",
     "test": "node --test test/*.test.js",
     "test:pack": "node ./scripts/pack-install-test.mjs",
-    "release:check": "npm test && npm run test:pack",
+    "release:check": "npm test && npm run test:pack && npm pack --dry-run",
     "prepublishOnly": "echo 'Publish only via GitHub Actions. See release workflow.' && exit 1",
     "version": "git add CHANGELOG.md package-lock.json package.json"
   },

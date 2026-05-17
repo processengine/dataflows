@@ -283,7 +283,7 @@ freeze: true
 
 ```ts
 interface ExecuteDataflowOptions {
-  trace?: false | 'basic' | 'verbose';
+  trace?: 'off' | 'basic' | 'verbose';
   runtimeSchemaValidation?: false | 'assert';
   redaction?: DataflowTraceRedactionOptions;
 }
@@ -292,7 +292,7 @@ interface ExecuteDataflowOptions {
 Default:
 
 ```text
-trace: false
+trace: 'off'
 runtimeSchemaValidation: false
 ```
 
@@ -1052,13 +1052,13 @@ Formatters are for CLI/logs/debugging and do not replace structured objects.
 ### 19.1. Trace modes
 
 ```ts
-type TraceMode = false | 'basic' | 'verbose';
+type TraceMode = 'off' | 'basic' | 'verbose';
 ```
 
 Default:
 
 ```text
-false
+'off'
 ```
 
 ### 19.2. Trace event shape
@@ -1143,7 +1143,7 @@ Trace must not become an accidental leak channel. `ExecuteDataflowOptions.redact
 | Item returns non-JSON-safe value | runtime error `DATAFLOW_OUTPUT_NOT_JSON_SAFE` |
 | Runtime schema validation fails | runtime error `DATAFLOW_OUTPUT_SCHEMA_INVALID` |
 | verbose redaction returns non-JSON-safe value | runtime error `DATAFLOW_TRACE_NOT_JSON_SAFE` |
-| trace=false | `trace` absent |
+| trace='off' | `trace` absent |
 
 ---
 
@@ -1502,7 +1502,7 @@ Release readiness requires:
 
 ### 27.5. Trace
 
-- `trace=false` omits trace.
+- `trace='off'` omits trace.
 - `trace='basic'` returns safe events without raw values.
 - `trace='verbose'` may include input/output subject to redaction.
 - Trace event contains `step`.

@@ -15,20 +15,6 @@ function schemaNode(title = 'Data object', fields = {}, description = 'Human-rea
   return { title, description, fields };
 }
 
-// Real mapping artifact from processor (fl-resident.registration)
-const clientCandidatesMappingSource = {
-  mappingId: 'mappings.fl_resident.client_candidates_facts',
-  sources: { findClientResult: 'object' },
-  output: {
-    resultStatus: { from: 'sources.findClientResult.resultStatus' },
-    hasMatches: { existsAny: { from: 'sources.findClientResult.clients[*]' } },
-    clientMatchCount: { count: { from: 'sources.findClientResult.clients[*]' } },
-    hasMultipleClientCandidates: { countAtLeast: { from: 'sources.findClientResult.clients[*]', value: 2 } },
-    hasOwnServiceClient: { existsAny: { from: 'sources.findClientResult.clients[*]', where: { field: 'createSrc', equals: 'NOMINAL_BENEFICIARY_SERVICE' } } },
-    firstClientCandidate: { pickFirst: { from: 'sources.findClientResult.clients[*]' } },
-  },
-};
-
 // Dataflow wrapping mappings → decisions (realistic minimal scenario)
 const findClientDataflow = {
   id: 'dataflow.fl_resident.find_client_evaluate',

@@ -592,9 +592,9 @@ test('runtimeSchemaValidation=assert: throws on type mismatch', () => {
 
 // ─── trace ────────────────────────────────────────────────────────────────────
 
-test('trace=false: no trace in output', () => {
+test('trace=off: no trace in output', () => {
   const artifact = prepareDataflow(validSource);
-  const result = executeDataflow(artifact, { state: makeState(), registries: makeStubRegistries() }, { trace: false });
+  const result = executeDataflow(artifact, { state: makeState(), registries: makeStubRegistries() }, { trace: 'off' });
   assert.equal(result.trace, undefined);
 });
 

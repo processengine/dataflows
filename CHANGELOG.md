@@ -21,7 +21,7 @@ All notable changes to `@processengine/dataflows` are documented here.
 - `readSet` / `writeSet` derivation in prepared artifact.
 - Read-after-write semantics within pipeline.
 - Atomic writes — no partial result on failure.
-- Trace modes: `false` (default), `'basic'`, `'verbose'`.
+- Trace modes: `'off'` (default), `'basic'`, `'verbose'`.
 - Transport-safe `DataflowOutput` — JSON-safe, no host cleanup required before `semantics.reduce`.
 - Pack/install smoke test via `npm run test:pack`.
 - CI workflow for Node.js 20 and 22.

@@ -2,6 +2,9 @@ import { isJsonSafe, jsonSafeCopy } from '../utils/json.js';
 import { getByPath, setByPath, isWritablePath } from '../utils/path.js';
 import { DataflowRuntimeError } from '../errors/DataflowRuntimeError.js';
 
+const TRACE_MODES = new Set(['off', 'basic', 'verbose']);
+const ALLOWED_OPTION_KEYS = new Set(['trace', 'runtimeSchemaValidation', 'redaction']);
+
 /**
  * Normalize canonical runtime result from neighbour libraries.
  * Runtime modules in the ProcessEngine family MUST return
@@ -71,6 +74,33 @@ function validateExecutionInput(input) {
   }
 }
 
+function validateExecutionOptions(options) {
+  if (options === undefined) return {};
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+    throw new DataflowRuntimeError({
+      code: 'DATAFLOW_EXECUTION_OPTIONS_INVALID',
+      message: 'executeDataflow options must be a plain object when provided',
+    });
+  }
+  for (const key of Object.keys(options)) {
+    if (!ALLOWED_OPTION_KEYS.has(key)) {
+      throw new DataflowRuntimeError({
+        code: 'DATAFLOW_EXECUTION_OPTIONS_INVALID',
+        message: `Unsupported executeDataflow option: ${key}`,
+        details: { option: key },
+      });
+    }
+  }
+  if (options.trace !== undefined && !TRACE_MODES.has(options.trace)) {
+    throw new DataflowRuntimeError({
+      code: 'DATAFLOW_TRACE_MODE_INVALID',
+      message: 'options.trace must be "off", "basic", or "verbose"',
+      details: { trace: options.trace },
+    });
+  }
+  return options;
+}
+
 function assertPreparedArtifactContract(artifact) {
   if (!artifact || artifact.artifactType !== 'dataflow') {
     throw new DataflowRuntimeError({
@@ -137,9 +167,10 @@ function getRegistryForItem(registries, item) {
 
 export function executeDataflowArtifact(artifact, input, options = {}) {
   validateExecutionInput(input);
+  const executionOptions = validateExecutionOptions(options);
   const { state, registries } = input;
-  const traceMode = options.trace ?? false;
-  const runtimeSchemaValidation = options.runtimeSchemaValidation ?? false;
+  const traceMode = executionOptions.trace ?? 'off';
+  const runtimeSchemaValidation = executionOptions.runtimeSchemaValidation ?? false;
 
   assertPreparedArtifactContract(artifact);
 
@@ -153,21 +184,21 @@ export function executeDataflowArtifact(artifact, input, options = {}) {
 
   let workingState = jsonSafeCopy(state);
   const writes = [];
-  const trace = traceMode !== false ? [] : null;
+  const trace = traceMode !== 'off' ? [] : null;
 
   for (const item of artifact.items) {
     const at = new Date().toISOString();
     assertPreparedItemWriteContract(artifact, item);
 
     // 1. Resolve the single input ref declared by the prepared item.
-    const itemInput = readInputOrThrow(workingState, item.contract.input.ref, item, trace, artifact, options, at);
+    const itemInput = readInputOrThrow(workingState, item.contract.input.ref, item, trace, artifact, executionOptions, at);
 
     // 2. Get artifact from registry
     let registry;
     try {
       registry = getRegistryForItem(registries, item);
     } catch (err) {
-      pushFailedTrace(trace, artifact, item, options, at);
+      pushFailedTrace(trace, artifact, item, executionOptions, at);
       if (err instanceof DataflowRuntimeError) {
         throw makeErrorWithTrace({ code: err.code, message: err.message, details: err.details ?? undefined, cause: err.cause }, trace);
       }
@@ -176,7 +207,7 @@ export function executeDataflowArtifact(artifact, input, options = {}) {
     const registryEntry = registry.get(item.artefactId);
 
     if (!registryEntry) {
-      pushFailedTrace(trace, artifact, item, options, at);
+      pushFailedTrace(trace, artifact, item, executionOptions, at);
       throw makeErrorWithTrace({
         code: 'DATAFLOW_ITEM_ARTIFACT_NOT_FOUND',
         message: `${item.type} artifact not found in registry: ${item.artefactId}`,
@@ -191,7 +222,7 @@ export function executeDataflowArtifact(artifact, input, options = {}) {
       else if (item.type === 'RULES') rawResult = registry.evaluateRules(registryEntry, itemInput);
       else if (item.type === 'DECISIONS') rawResult = registry.evaluateDecisions(registryEntry, itemInput);
     } catch (err) {
-      pushFailedTrace(trace, artifact, item, options, at);
+      pushFailedTrace(trace, artifact, item, executionOptions, at);
       throw makeErrorWithTrace({
         code: 'DATAFLOW_ITEM_EXECUTION_FAILED',
         message: `${item.type} item "${item.id}" threw during execution: ${err?.message ?? String(err)}`,
@@ -204,7 +235,7 @@ export function executeDataflowArtifact(artifact, input, options = {}) {
     try {
       itemOutput = normalizeRuntimeResult(rawResult, item);
     } catch (err) {
-      pushFailedTrace(trace, artifact, item, options, at);
+      pushFailedTrace(trace, artifact, item, executionOptions, at);
       if (err instanceof DataflowRuntimeError) {
         throw makeErrorWithTrace({ code: err.code, message: err.message, details: err.details ?? undefined, cause: err.cause }, trace);
       }
@@ -213,7 +244,7 @@ export function executeDataflowArtifact(artifact, input, options = {}) {
 
     // 4. Assert JSON-safe output
     if (!isJsonSafe(itemOutput)) {
-      pushFailedTrace(trace, artifact, item, options, at);
+      pushFailedTrace(trace, artifact, item, executionOptions, at);
       throw makeErrorWithTrace({
         code: 'DATAFLOW_OUTPUT_NOT_JSON_SAFE',
         message: `${item.type} item "${item.id}" returned non-JSON-safe output`,
@@ -226,7 +257,7 @@ export function executeDataflowArtifact(artifact, input, options = {}) {
       const schemaNode = artifact.schema?.[item.contract.output.ref];
       if (schemaNode?.fields) {
         if (itemOutput === null || typeof itemOutput !== 'object' || Array.isArray(itemOutput)) {
-          pushFailedTrace(trace, artifact, item, options, at);
+          pushFailedTrace(trace, artifact, item, executionOptions, at);
           const actual = Array.isArray(itemOutput) ? 'array' : itemOutput === null ? 'null' : typeof itemOutput;
           throw makeErrorWithTrace({
             code: 'DATAFLOW_OUTPUT_SCHEMA_INVALID',
@@ -240,7 +271,7 @@ export function executeDataflowArtifact(artifact, input, options = {}) {
             const expected = fieldDef.type;
             const typeOk = actual === expected;
             if (!typeOk) {
-              pushFailedTrace(trace, artifact, item, options, at);
+              pushFailedTrace(trace, artifact, item, executionOptions, at);
               throw makeErrorWithTrace({
                 code: 'DATAFLOW_OUTPUT_SCHEMA_INVALID',
                 message: `Field "${field}" of item "${item.id}" has type "${actual}", expected "${expected}"`,
@@ -259,7 +290,7 @@ export function executeDataflowArtifact(artifact, input, options = {}) {
     workingState = setByPath(workingState, item.contract.output.ref, itemOutput);
 
     // 8. Trace
-    if (trace) trace.push(makeTraceEntry('DATAFLOW_ITEM_COMPLETED', artifact, item, 'completed', options, at, itemInput, itemOutput));
+    if (trace) trace.push(makeTraceEntry('DATAFLOW_ITEM_COMPLETED', artifact, item, 'completed', executionOptions, at, itemInput, itemOutput));
   }
 
   const result = { writes: Object.freeze(writes) };

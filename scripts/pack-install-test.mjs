@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -62,3 +62,4 @@ console.log('pack smoke ok');
 
 writeFileSync(join(workdir, 'check.mjs'), script);
 execFileSync('node', ['check.mjs'], { cwd: workdir, stdio: 'inherit' });
+rmSync(tarballPath, { force: true });

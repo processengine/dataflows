@@ -38,9 +38,9 @@ const registries = {
 
 const state = { context: { input: { data: { x: 1 } } } };
 
-test('trace=false: no trace in output', () => {
+test('trace=off: no trace in output', () => {
   const artifact = prepareDataflow(source);
-  const result = executeDataflow(artifact, { state, registries }, { trace: false });
+  const result = executeDataflow(artifact, { state, registries }, { trace: 'off' });
   assert.equal(result.trace, undefined);
 });
 
@@ -90,4 +90,15 @@ test('trace step matches canonical shape from API canon', () => {
   assert.ok('step' in entry);
   assert.ok('at' in entry);
   assert.ok('outcome' in entry);
+});
+
+test('invalid trace modes are rejected', () => {
+  const artifact = prepareDataflow(source);
+  for (const trace of [false, true, null, 'bad', 1, {}]) {
+    assert.throws(
+      () => executeDataflow(artifact, { state, registries }, { trace }),
+      (err) => err.code === 'DATAFLOW_TRACE_MODE_INVALID',
+      `trace=${String(trace)}`,
+    );
+  }
 });
