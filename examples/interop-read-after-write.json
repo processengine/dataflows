@@ -1,0 +1,63 @@
+{
+  "id": "dataflow.example.interop_read_after_write",
+  "version": "1.0.0",
+  "title": "Interop example: mappings to decisions",
+  "description": "The DECISIONS item reads facts written by the preceding MAPPINGS item through read-after-write semantics.",
+  "schema": {
+    "$.context.data.facts.validation": {
+      "title": "Validation facts",
+      "fields": {
+        "errorCount": {
+          "type": "number",
+          "title": "Validation error count",
+          "description": "Number of blocking validation errors found in the input."
+        }
+      },
+      "description": "Facts produced by the mappings item and consumed by the decisions item in the same dataflow."
+    },
+    "$.context.data.decisions.validation": {
+      "title": "Validation decision",
+      "fields": {
+        "outcome": {
+          "type": "string",
+          "title": "Validation outcome",
+          "description": "Outcome selected by the decisions item from validation facts."
+        }
+      },
+      "description": "Decision result selected from validation facts."
+    }
+  },
+  "pipeline": [
+    {
+      "id": "derive_validation_facts",
+      "type": "MAPPINGS",
+      "kind": "facts",
+      "title": "Derive validation facts",
+      "description": "Maps validation runtime output into stable facts for the decision layer.",
+      "artefactId": "mappings.example.validation_facts",
+      "contract": {
+        "input": {
+          "ref": "$.context.input.validation"
+        },
+        "output": {
+          "ref": "$.context.data.facts.validation"
+        }
+      }
+    },
+    {
+      "id": "choose_validation_outcome",
+      "type": "DECISIONS",
+      "title": "Choose validation outcome",
+      "description": "Reads facts produced by the previous item and returns an outcome.",
+      "artefactId": "decisions.example.validation_outcome",
+      "contract": {
+        "input": {
+          "ref": "$.context.data.facts.validation"
+        },
+        "output": {
+          "ref": "$.context.data.decisions.validation"
+        }
+      }
+    }
+  ]
+}

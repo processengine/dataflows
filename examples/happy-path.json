@@ -1,0 +1,37 @@
+{
+  "id": "dataflow.example.happy_path",
+  "version": "1.0.0",
+  "title": "Happy path example",
+  "description": "Reads application input, maps it into facts, and writes the facts into context.data.",
+  "schema": {
+    "$.context.data.facts.application": {
+      "title": "Application facts",
+      "fields": {
+        "ok": {
+          "type": "boolean",
+          "title": "Application is acceptable",
+          "description": "true when the application input passes the example mapping."
+        }
+      },
+      "description": "Facts derived from the application input and used by later PROCESS/DATA items."
+    }
+  },
+  "pipeline": [
+    {
+      "id": "derive_application_facts",
+      "type": "MAPPINGS",
+      "kind": "facts",
+      "title": "Derive application facts",
+      "description": "Extracts a compact facts object from the application input.",
+      "artefactId": "mappings.example.application_facts",
+      "contract": {
+        "input": {
+          "ref": "$.context.input.application"
+        },
+        "output": {
+          "ref": "$.context.data.facts.application"
+        }
+      }
+    }
+  ]
+}

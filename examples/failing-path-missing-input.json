@@ -1,0 +1,37 @@
+{
+  "id": "dataflow.example.failing_missing_input",
+  "version": "1.0.0",
+  "title": "Failing path: missing input",
+  "description": "A valid artifact whose runtime input path must exist. If $.context.input.application is missing, executeDataflow throws DATAFLOW_INPUT_REF_NOT_FOUND.",
+  "schema": {
+    "$.context.data.facts.application": {
+      "title": "Application facts",
+      "fields": {
+        "ok": {
+          "type": "boolean",
+          "title": "Application is acceptable",
+          "description": "true when the application input passes the example mapping."
+        }
+      },
+      "description": "Facts that require $.context.input.application to exist at runtime."
+    }
+  },
+  "pipeline": [
+    {
+      "id": "derive_application_facts",
+      "type": "MAPPINGS",
+      "kind": "facts",
+      "title": "Derive application facts",
+      "description": "Requires $.context.input.application to be present in process state.",
+      "artefactId": "mappings.example.application_facts",
+      "contract": {
+        "input": {
+          "ref": "$.context.input.application"
+        },
+        "output": {
+          "ref": "$.context.data.facts.application"
+        }
+      }
+    }
+  ]
+}

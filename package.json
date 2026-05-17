@@ -1,0 +1,56 @@
+{
+  "name": "@processengine/dataflows",
+  "version": "1.0.0",
+  "description": "Runtime for dataflow artifacts in ProcessEngine Flow 5",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "SPEC_RU.md",
+    "COMPATIBILITY.md",
+    "MIGRATION.md",
+    "CHANGELOG.md",
+    "examples/",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "pretest": "npm run build",
+    "test": "node --test test/*.test.js",
+    "test:pack": "node ./scripts/pack-install-test.mjs",
+    "release:check": "npm test && npm run test:pack",
+    "prepublishOnly": "echo 'Publish only via GitHub Actions. See release workflow.' && exit 1",
+    "version": "git add CHANGELOG.md package-lock.json package.json"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "keywords": [
+    "dataflow",
+    "pipeline",
+    "processengine",
+    "declarative",
+    "dsl"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/processengine/dataflows.git"
+  },
+  "homepage": "https://github.com/processengine/dataflows#readme",
+  "bugs": {
+    "url": "https://github.com/processengine/dataflows/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
