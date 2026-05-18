@@ -48,7 +48,7 @@ const source = {
     kind: 'facts',
     artefactId: 'mappings.example',
     contract: {
-      input: { ref: '$.context.input.application' },
+      input: { refs: { '$': '$.context.input.application' } },
       output: { ref: '$.context.data.facts.result' }
     }
   }]
@@ -79,22 +79,37 @@ The package is designed from the public contract inward:
 
 - one normative source shape, not several accepted aliases;
 - one runtime result contract from neighbour libraries: `{ output, trace? }`;
-- child runtime `trace`, if returned, is accepted but not merged into dataflow trace in v1;
-- no compatibility branches before the first release;
+- child runtime `trace`, if returned, is accepted but not merged into dataflow trace;
+- no hidden compatibility branches for malformed legacy artifacts;
 - no hidden fallback behavior for malformed artifacts;
 - validation rejects unsupported fields instead of interpreting them leniently;
 - runtime failure trace is observable in `DataflowRuntimeError.details.trace` when trace is enabled.
 
-For v1 every pipeline item has exactly one input contract:
+Every pipeline item has exactly one input contract: `input.refs`.
 
 ```js
 contract: {
-  input: { ref: '$.context.data.payloads.clientComparison' },
+  input: { refs: { '$': '$.context.data.payloads.clientComparison' } },
   output: { ref: '$.context.data.facts.clientComparison' }
 }
 ```
 
-If a later version needs composite input assembly, it must be introduced as a new explicit contract, not as an implicit extension of this one.
+The special `$` target passes the resolved state value as the whole child input. Named targets assemble a compact object for the child runtime:
+
+```js
+contract: {
+  input: {
+    refs: {
+      payload: '$.context.input.application',
+      'context.currentDate': '$.context.input.currentDate',
+      effects: '$.context.effects'
+    }
+  },
+  output: { ref: '$.context.data.payloads.clientComparison' }
+}
+```
+
+The `$` target cannot be mixed with named targets. Read refs may point to `$.context.input`, `$.context.effects`, `$.context.data`, or nested paths under those buckets.
 
 Schema nodes and fields are part of the human-readable contract. Each schema node and each declared field must have both `title` and `description`. This keeps dataflow artifacts usable as code-as-docs and makes the data contract readable in Flow UI, reviews, and business-requirement traceability.
 

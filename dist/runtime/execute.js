@@ -1,5 +1,5 @@
 import { isJsonSafe, jsonSafeCopy } from '../utils/json.js';
-import { getByPath, setByPath, isWritablePath } from '../utils/path.js';
+import { getByPath, setByPath, isWritablePath, setInputTargetPath } from '../utils/path.js';
 import { DataflowRuntimeError } from '../errors/DataflowRuntimeError.js';
 
 const TRACE_MODES = new Set(['off', 'basic', 'verbose']);
@@ -40,17 +40,44 @@ function pushFailedTrace(trace, artifact, item, options, at) {
   if (trace) trace.push(makeTraceEntry('DATAFLOW_ITEM_FAILED', artifact, item, 'failed', options, at));
 }
 
-function readInputOrThrow(workingState, inputRef, item, trace, artifact, options, at) {
-  const value = getByPath(workingState, inputRef);
-  if (value === undefined) {
-    pushFailedTrace(trace, artifact, item, options, at);
-    throw makeErrorWithTrace({
-      code: 'DATAFLOW_INPUT_REF_NOT_FOUND',
-      message: `contract.input.ref not found in state: ${inputRef}`,
-      details: { itemId: item.id, ref: inputRef },
-    }, trace);
+function readInputOrThrow(workingState, inputContract, item, trace, artifact, options, at) {
+  const refs = inputContract?.refs;
+  const entries = Object.entries(refs || {});
+  if (entries.length === 1 && entries[0][0] === '$') {
+    const ref = entries[0][1];
+    const value = getByPath(workingState, ref);
+    if (value === undefined) {
+      pushFailedTrace(trace, artifact, item, options, at);
+      throw makeErrorWithTrace({
+        code: 'DATAFLOW_INPUT_REF_NOT_FOUND',
+        message: `contract.input.refs.$ not found in state: ${ref}`,
+        details: { itemId: item.id, targetPath: '$', ref },
+      }, trace);
+    }
+    return jsonSafeCopy(value);
   }
-  return value;
+
+  const input = {};
+  for (const [targetPath, ref] of entries) {
+    const value = getByPath(workingState, ref);
+    if (value === undefined) {
+      pushFailedTrace(trace, artifact, item, options, at);
+      throw makeErrorWithTrace({
+        code: 'DATAFLOW_INPUT_REF_NOT_FOUND',
+        message: `contract.input.refs.${targetPath} not found in state: ${ref}`,
+        details: { itemId: item.id, targetPath, ref },
+      }, trace);
+    }
+    if (!setInputTargetPath(input, targetPath, jsonSafeCopy(value))) {
+      pushFailedTrace(trace, artifact, item, options, at);
+      throw makeErrorWithTrace({
+        code: 'DATAFLOW_INPUT_TARGET_INVALID',
+        message: `prepared input.refs target is invalid: ${targetPath}`,
+        details: { itemId: item.id, targetPath },
+      }, trace);
+    }
+  }
+  return input;
 }
 
 function validateExecutionInput(input) {
@@ -190,8 +217,8 @@ export function executeDataflowArtifact(artifact, input, options = {}) {
     const at = new Date().toISOString();
     assertPreparedItemWriteContract(artifact, item);
 
-    // 1. Resolve the single input ref declared by the prepared item.
-    const itemInput = readInputOrThrow(workingState, item.contract.input.ref, item, trace, artifact, executionOptions, at);
+    // 1. Resolve explicit input refs declared by the prepared item.
+    const itemInput = readInputOrThrow(workingState, item.contract.input, item, trace, artifact, executionOptions, at);
 
     // 2. Get artifact from registry
     let registry;
@@ -252,7 +279,7 @@ export function executeDataflowArtifact(artifact, input, options = {}) {
       }, trace);
     }
 
-    // 5. Runtime schema validation (v1 minimal declared field type assertion)
+    // 5. Runtime schema validation (v2 minimal declared field type assertion)
     if (runtimeSchemaValidation === 'assert') {
       const schemaNode = artifact.schema?.[item.contract.output.ref];
       if (schemaNode?.fields) {

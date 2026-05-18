@@ -26,7 +26,9 @@
       "artefactId": "mappings.example.application_facts",
       "contract": {
         "input": {
-          "ref": "$.context.input.application"
+          "refs": {
+            "$": "$.context.input.application"
+          }
         },
         "output": {
           "ref": "$.context.data.facts.application"

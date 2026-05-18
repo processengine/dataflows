@@ -39,7 +39,7 @@ const findClientDataflow = {
       kind: 'facts',
       artefactId: 'mappings.fl_resident.client_candidates_facts',
       contract: {
-        input: { ref: '$.context.effects.find_client.waitResult.result' },
+        input: { refs: { '$': '$.context.effects.find_client.waitResult.result' } },
         output: { ref: '$.context.data.facts.clientCandidates' },
       },
     },
@@ -48,7 +48,7 @@ const findClientDataflow = {
       type: 'DECISIONS',
       artefactId: 'decisions.fl_resident.find_client_scenario',
       contract: {
-        input: { ref: '$.context.data.facts.clientCandidates' },
+        input: { refs: { '$': '$.context.data.facts.clientCandidates' } },
         output: { ref: '$.context.data.decisions.findClientScenario' },
       },
     },

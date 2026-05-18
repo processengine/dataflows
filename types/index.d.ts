@@ -5,7 +5,8 @@ export type MappingKind = 'payload' | 'facts' | 'result';
 export type PipelineItemType = 'MAPPINGS' | 'RULES' | 'DECISIONS';
 export type TraceMode = 'off' | 'basic' | 'verbose';
 
-export interface DataflowInputContract { ref: PathRef; }
+export type InputTargetPath = '$' | string;
+export interface DataflowInputContract { refs: Record<InputTargetPath, PathRef>; }
 
 export interface SchemaFieldDef { type?: string; title: string; description: string; }
 export interface SchemaNode { title: string; description: string; fields?: Record<string, SchemaFieldDef>; }

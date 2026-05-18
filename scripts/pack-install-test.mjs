@@ -32,7 +32,7 @@ const source = {
       kind: 'facts',
       artefactId: 'mappings.smoke',
       contract: {
-        input: { ref: '$.context.input.application' },
+        input: { refs: { '$': '$.context.input.application' } },
         output: { ref: '$.context.data.facts.smokeResult' }
       }
     }

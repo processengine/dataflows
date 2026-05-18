@@ -2,7 +2,7 @@
 
 ## From Flow 3 PROCESS/MAPPINGS + PROCESS/DECISIONS chains to PROCESS/DATA + dataflow artifact
 
-`@processengine/dataflows` v1 is part of the Flow 5 hard breaking model.
+`@processengine/dataflows` v2 is part of the Flow 5 hard breaking model.
 Existing Flow 3 artifacts are not auto-migrated. Flow 5 processes are rewritten.
 
 ### Rewrite path
@@ -17,6 +17,36 @@ context.checks.*     → context.data.checks.*
 result mappings      → context.data.results.*
 payload-like refs    → context.data.payloads.*
 ```
+
+### Dataflow input contract
+
+Flow 5 dataflow items use only `contract.input.refs`; the old single `contract.input.ref` shape is not supported.
+
+Direct single-value input:
+
+```js
+contract: {
+  input: { refs: { '$': '$.context.input.application' } },
+  output: { ref: '$.context.data.facts.application' }
+}
+```
+
+Composite compact input:
+
+```js
+contract: {
+  input: {
+    refs: {
+      payload: '$.context.input.application',
+      'context.currentDate': '$.context.input.currentDate',
+      effects: '$.context.effects'
+    }
+  },
+  output: { ref: '$.context.data.payloads.applicationCheck' }
+}
+```
+
+The `$` target means “pass the resolved value as the whole child input” and must not be mixed with named targets.
 
 ### Mapping artifacts
 

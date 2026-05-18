@@ -1,6 +1,6 @@
 {
   "name": "@processengine/dataflows",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Runtime for dataflow artifacts in ProcessEngine Flow 5",
   "type": "module",
   "main": "./dist/index.js",

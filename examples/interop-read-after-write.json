@@ -37,7 +37,9 @@
       "artefactId": "mappings.example.validation_facts",
       "contract": {
         "input": {
-          "ref": "$.context.input.validation"
+          "refs": {
+            "$": "$.context.input.validation"
+          }
         },
         "output": {
           "ref": "$.context.data.facts.validation"
@@ -52,7 +54,9 @@
       "artefactId": "decisions.example.validation_outcome",
       "contract": {
         "input": {
-          "ref": "$.context.data.facts.validation"
+          "refs": {
+            "$": "$.context.data.facts.validation"
+          }
         },
         "output": {
           "ref": "$.context.data.decisions.validation"

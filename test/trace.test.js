@@ -23,7 +23,7 @@ const source = {
     kind: 'facts',
     artefactId: 'mappings.trace.test',
     contract: {
-      input: { ref: '$.context.input.data' },
+      input: { refs: { '$': '$.context.input.data' } },
       output: { ref: '$.context.data.facts.result' },
     },
   }],

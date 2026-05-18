@@ -4,6 +4,20 @@ All notable changes to `@processengine/dataflows` are documented here.
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-05-18
+
+### Changed
+
+- Replaced the pipeline input contract with `contract.input.refs`.
+- Added direct `$` target semantics for single-value child input.
+- Added named and nested target semantics for compact child input assembly.
+- `readSet` now derives every declared input ref from `contract.input.refs`.
+- Read refs may target `$.context.input`, `$.context.effects`, `$.context.data`, or nested paths under those buckets.
+
+### Removed
+
+- Removed support for legacy `contract.input.ref`.
+
 ## [1.0.0] — 2026-05-17
 
 ### Added

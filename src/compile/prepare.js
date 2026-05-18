@@ -1,7 +1,7 @@
 import { validateDataflowSource } from './validate.js';
 import { hasErrors } from './diagnostics.js';
 import { DataflowCompileError } from '../errors/DataflowCompileError.js';
-import { getInputRef } from '../utils/path.js';
+import { getInputRefs } from '../utils/path.js';
 
 export function prepareDataflowArtifact(source, options = {}) {
   const validation = validateDataflowSource(source, options);
@@ -36,12 +36,13 @@ export function prepareDataflowArtifact(source, options = {}) {
     schema = schemaArtifact.schema;
   }
 
-  // Derive readSet / writeSet. Dataflows v1 has a single input ref per item.
+  // Derive readSet / writeSet from explicit state refs.
   const readSet = [];
   const writeSet = [];
   for (const item of source.pipeline) {
-    const inputRef = getInputRef(item.contract?.input ?? {});
-    if (inputRef && !readSet.includes(inputRef)) readSet.push(inputRef);
+    for (const inputRef of Object.values(getInputRefs(item.contract?.input ?? {}) || {})) {
+      if (inputRef && !readSet.includes(inputRef)) readSet.push(inputRef);
+    }
     const outputRef = item.contract?.output?.ref;
     if (outputRef && !writeSet.includes(outputRef)) writeSet.push(outputRef);
   }
@@ -53,7 +54,7 @@ export function prepareDataflowArtifact(source, options = {}) {
       type: item.type,
       artefactId: item.artefactId,
       contract: {
-        input: item.contract.input,
+        input: { refs: { ...item.contract.input.refs } },
         output: { ref: item.contract.output.ref },
       },
     };

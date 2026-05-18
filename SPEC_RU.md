@@ -1,4 +1,4 @@
-# `@processengine/dataflows` v1 — SPEC_RU
+# `@processengine/dataflows` v2 — SPEC_RU
 
 **Статус:** Draft  
 **Версия спецификации:** 0.1  
@@ -41,7 +41,7 @@
 
 ## 1. Что нормативно определяется этим документом
 
-Этот документ является нормативной спецификацией пакета `@processengine/dataflows` v1.
+Этот документ является нормативной спецификацией пакета `@processengine/dataflows` v2.
 
 Нормативно определяются:
 
@@ -259,7 +259,7 @@ interface ValidateDataflowOptions {
 | `schemaRegistry` | используется для разрешения `schemaRef` |
 | `artifactRegistries` | используется для проверки существования referenced artifacts и MAPPINGS kind consistency |
 
-`@processengine/dataflows` v1 валидирует локальный dataflow artifact. Проверки полной Process Data Schema и всего artifact-set принадлежат отдельному artifact-set compiler, а не этому runtime-пакету.
+`@processengine/dataflows` v2 валидирует локальный dataflow artifact. Проверки полной Process Data Schema и всего artifact-set принадлежат отдельному artifact-set compiler, а не этому runtime-пакету.
 
 ### 5.2. `PrepareDataflowOptions`
 
@@ -296,7 +296,7 @@ trace: 'off'
 runtimeSchemaValidation: false
 ```
 
-`runtimeSchemaValidation: "assert"` в v1 является минимальной проверкой объявленных top-level fields. Если schema node содержит `fields`, output должен быть plain object; для присутствующих полей с `type` проверяется фактический JSON type. V1 не выполняет full JSON Schema validation: не проверяет required, additionalProperties, nested fields, array items и nullability.
+`runtimeSchemaValidation: "assert"` в v2 является минимальной проверкой объявленных top-level fields. Если schema node содержит `fields`, output должен быть plain object; для присутствующих полей с `type` проверяется фактический JSON type. V2 не выполняет full JSON Schema validation: не проверяет required, additionalProperties, nested fields, array items и nullability.
 
 ---
 
@@ -386,7 +386,7 @@ Flow-level step types не являются pipeline item types.
 
 ```ts
 interface DataflowInputContract {
-  ref: PathRef;
+  refs: Record<InputTargetPath, PathRef>;
 }
 
 interface DataflowPipelineItemBase {
@@ -403,16 +403,17 @@ interface DataflowPipelineItemBase {
 }
 ```
 
-`contract.input` has exactly one normative v1 shape: `{ ref: PathRef }`.
-`contract.input.ref` reads one value from `workingState`.
-Dataflows v1 does not support multi-ref input assembly. If a pipeline item needs a composite object, it must read an already prepared object from a single ref.
+`contract.input` has exactly one normative v2 shape: `{ refs: Record<InputTargetPath, PathRef> }`.
+`contract.input.refs` reads one or more values from `workingState` and builds the child input.
+The special target `$` passes the resolved value as the whole child input and must not be mixed with named targets.
+Named targets assemble a compact object; dotted targets create nested objects.
 
 | Поле | Тип | Required | Runtime meaning |
 |---|---|---:|---|
 | `id` | `string` | да | Идентификатор item внутри pipeline |
 | `type` | enum | да | Выбирает registry/runtime |
 | `artefactId` | `string` | да | Ссылка на prepared artifact соседней библиотеки |
-| `contract.input.ref` | `PathRef` | да | Прочитать один input из workingState |
+| `contract.input.refs` | `Record<InputTargetPath, PathRef>` | да | Прочитать direct `$` input или собрать compact object из named refs |
 | `contract.output.ref` | `PathRef` | да | Куда записать output в workingState и `writes[]` |
 | `title` | `string` | нет | UI title |
 | `description` | `string` | нет | UI description |
@@ -429,7 +430,7 @@ interface MappingsDataflowItem extends DataflowPipelineItemBase {
 
 Runtime semantics:
 
-1. Прочитать input из `workingState` по `contract.input.ref`.
+1. Собрать item input из `workingState` по `contract.input.refs`.
 2. Найти mapping artifact по `artefactId`.
 3. Исполнить его через канонический runtime `executeMappings(...)`.
 4. Записать output по `contract.output.ref`.
@@ -453,7 +454,7 @@ interface RulesDataflowItem extends DataflowPipelineItemBase {
 
 Runtime semantics:
 
-1. Прочитать input из `workingState` по `contract.input.ref`.
+1. Собрать item input из `workingState` по `contract.input.refs`.
 2. Найти rules artifact по `artefactId`.
 3. Исполнить его через канонический runtime `evaluateRules(...)`.
 4. Записать rules result по `contract.output.ref`.
@@ -477,7 +478,7 @@ interface DecisionsDataflowItem extends DataflowPipelineItemBase {
 
 Runtime semantics:
 
-1. Прочитать input из `workingState` по `contract.input.ref`.
+1. Собрать item input из `workingState` по `contract.input.refs`.
 2. Найти decisions artifact по `artefactId`.
 3. Исполнить его через канонический runtime `evaluateDecisions(...)`.
 4. Записать decision result по `contract.output.ref`.
@@ -546,8 +547,11 @@ type JsonValue =
 Input refs могут читать:
 
 ```text
+$.context.input
 $.context.input.*
+$.context.effects
 $.context.effects.*
+$.context.data
 $.context.data.*
 ```
 
@@ -582,7 +586,7 @@ Pipeline item не может читать output item-а, который рас
 
 ### 9.4. Unresolvable refs
 
-Если `contract.input.ref` не существует в `workingState` во время runtime, `executeDataflow` бросает `DataflowRuntimeError` с кодом:
+Если любой `contract.input.refs[target]` не существует в `workingState` во время runtime, `executeDataflow` бросает `DataflowRuntimeError` с кодом:
 
 ```text
 DATAFLOW_INPUT_REF_NOT_FOUND
@@ -853,7 +857,7 @@ executeDataflow(artifact, input, options):
   trace = [] if trace enabled
 
   for item in artifact.items in order:
-    itemInput = read(workingState, item.contract.input.ref)
+    itemInput = resolveInputRefs(workingState, item.contract.input.refs)
     if itemInput missing:
       throw DATAFLOW_INPUT_REF_NOT_FOUND
 
@@ -864,14 +868,14 @@ executeDataflow(artifact, input, options):
     runtimeResult = execute item using canonical registry runtime
     assert runtimeResult has canonical shape { output, trace? }
     itemOutput = runtimeResult.output
-    ignore runtimeResult.trace in dataflows v1
+    ignore runtimeResult.trace in dataflows v2
 
     assert itemOutput is JSON-safe
     assert item.contract.output.ref starts with $.context.data.
     assert item.contract.output.ref is declared in artifact.schema
 
     if runtimeSchemaValidation === 'assert':
-      validate v1 minimal declared top-level field types of itemOutput against schema at output ref; if schema node declares fields, itemOutput must be object
+      validate v2 minimal declared top-level field types of itemOutput against schema at output ref; if schema node declares fields, itemOutput must be object
 
     writes.push({
       ref: item.contract.output.ref,
@@ -1132,7 +1136,7 @@ Trace must not become an accidental leak channel. `ExecuteDataflowOptions.redact
 | Unknown item type | compile error `DATAFLOW_ITEM_TYPE_UNSUPPORTED` |
 | Duplicate item id | compile error `DATAFLOW_ITEM_ID_DUPLICATE` |
 | Duplicate output ref | compile error `DATAFLOW_WRITE_CONFLICT` |
-| input.ref === output.ref | compile error `DATAFLOW_INPLACE_WRITE` |
+| any input.refs value === output.ref | compile error `DATAFLOW_INPLACE_WRITE` |
 | Output ref outside `$.context.data.*` | compile error `DATAFLOW_WRITE_FORBIDDEN_PATH` |
 | Output ref not in schema | compile error `DATAFLOW_WRITE_NOT_IN_SCHEMA` |
 | Read from future item | compile error `DATAFLOW_READ_FROM_FUTURE_ITEM` |
@@ -1373,7 +1377,7 @@ Breaking changes include:
 
 ## 25. Migration
 
-`@processengine/dataflows` v1 is introduced as part of Flow 5 hard breaking model.
+`@processengine/dataflows` v2 is introduced as part of Flow 5 hard breaking model.
 
 Migration from Flow3 process artifacts is a rewrite:
 
@@ -1498,7 +1502,7 @@ Release readiness requires:
 - Returns explicit `writes[]`.
 - Does not return partial writes on failure.
 - Throws if item output is not JSON-safe.
-- Optional runtime schema validation works within the documented v1 minimal field-type assertion limits.
+- Optional runtime schema validation works within the documented v2 minimal field-type assertion limits.
 
 ### 27.5. Trace
 
@@ -1528,4 +1532,4 @@ These examples are included in the npm tarball and must remain aligned with READ
 
 ### Runtime result contract clarification
 
-Runtime modules called by `@processengine/dataflows` MUST return canonical runtime result objects of shape `{ output: JsonValue, trace?: JsonValue[] }`. Bare values are invalid and MUST produce `DATAFLOW_RUNTIME_RESULT_INVALID`. This avoids ambiguity when a valid business object itself contains an `output` field. Child runtime `trace` is accepted for interop with family runtimes but is not merged into `DataflowOutput.trace` in v1; dataflow trace records only dataflow item execution.
+Runtime modules called by `@processengine/dataflows` MUST return canonical runtime result objects of shape `{ output: JsonValue, trace?: JsonValue[] }`. Bare values are invalid and MUST produce `DATAFLOW_RUNTIME_RESULT_INVALID`. This avoids ambiguity when a valid business object itself contains an `output` field. Child runtime `trace` is accepted for interop with family runtimes but is not merged into `DataflowOutput.trace` in v2; dataflow trace records only dataflow item execution.

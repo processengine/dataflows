@@ -6,10 +6,11 @@ Minimum supported: **20.19.0**
 
 ## Public contract
 
-The following constitute the public contract of v1:
+The following constitute the public contract of v2:
 
 - Public API names and signatures (`validateDataflow`, `prepareDataflow`, `executeDataflow`, `extractDataflowSchema`, formatters, error classes)
 - `DataflowSource` format
+- `DataflowSource.pipeline[].contract.input.refs` format, including direct `$` and named compact input targets
 - Public `DataflowArtifact` shape (`artifactType`, `id`, `version`, `schema`, `readSet`, `writeSet`, `items[].id/type/artefactId/contract/kind`)
 - `DataflowOutput` shape (`writes`, `trace?`)
 - `DataflowWrite` shape (`ref`, `value`, `itemId`)
@@ -20,10 +21,11 @@ The following constitute the public contract of v1:
 - Read-after-write semantics
 - Write atomicity semantics
 
-## Breaking changes include
+## Compatibility violations include
 
 - Removing or renaming public API functions
 - Changing required fields in `DataflowSource`
+- Reintroducing or accepting `DataflowSource.pipeline[].contract.input.ref`
 - Changing `DataflowOutput` or `DataflowWrite` shape
 - Weakening transport-safe guarantees
 - Changing `basic` trace shape incompatibly
