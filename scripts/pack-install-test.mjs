@@ -23,7 +23,7 @@ const source = {
   id: 'dataflow.smoke.test',
   version: '1.0.0',
   schema: {
-    '$.context.data.facts.smokeResult': { title: 'Smoke result', description: 'Facts produced by the pack/install smoke test.', fields: { ok: { type: 'boolean', title: 'Smoke check passed', description: 'true when the smoke mapping returns a successful result.' } } }
+    '$.data.facts.smokeResult': { title: 'Smoke result', description: 'Facts produced by the pack/install smoke test.', fields: { ok: { type: 'boolean', title: 'Smoke check passed', description: 'true when the smoke mapping returns a successful result.' } } }
   },
   pipeline: [
     {
@@ -32,8 +32,8 @@ const source = {
       kind: 'facts',
       artefactId: 'mappings.smoke',
       contract: {
-        input: { refs: { '$': '$.context.input.application' } },
-        output: { ref: '$.context.data.facts.smokeResult' }
+        input: { refs: { '$': '$.input.application' } },
+        output: { ref: '$.data.facts.smokeResult' }
       }
     }
   ]
@@ -44,7 +44,7 @@ if (!v.ok) throw new Error('validate failed: ' + formatDataflowDiagnostics(v.dia
 
 const artifact = prepareDataflow(source);
 if (artifact.artifactType !== 'dataflow') throw new Error('wrong artifactType');
-if (artifact.writeSet[0] !== '$.context.data.facts.smokeResult') throw new Error('wrong writeSet');
+if (artifact.writeSet[0] !== '$.data.facts.smokeResult') throw new Error('wrong writeSet');
 
 // execute with stub registry
 const stubArtifact = { kind: 'stub' };
@@ -54,7 +54,7 @@ const registries = {
     executeMappings: () => ({ output: { ok: true } }),
   }
 };
-const result = executeDataflow(artifact, { state: { context: { input: { application: { x: 1 } } } }, registries });
+const result = executeDataflow(artifact, { state: { input: { application: { x: 1 } } }, registries });
 if (!result.writes || result.writes.length !== 1) throw new Error('wrong writes');
 if (result.writes[0].value.ok !== true) throw new Error('wrong write value');
 console.log('pack smoke ok');

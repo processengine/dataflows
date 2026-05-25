@@ -15,7 +15,7 @@ const source = {
   id: 'dataflow.trace.test',
   version: '1.0.0',
   schema: {
-    '$.context.data.facts.result': { title: 'Result', description: 'Result data object.', fields: { ok: schemaField('boolean') } },
+    '$.data.facts.result': { title: 'Result', description: 'Result data object.', fields: { ok: schemaField('boolean') } },
   },
   pipeline: [{
     id: 'map_item',
@@ -23,8 +23,8 @@ const source = {
     kind: 'facts',
     artefactId: 'mappings.trace.test',
     contract: {
-      input: { refs: { '$': '$.context.input.data' } },
-      output: { ref: '$.context.data.facts.result' },
+      input: { refs: { '$': '$.input.data' } },
+      output: { ref: '$.data.facts.result' },
     },
   }],
 };
@@ -36,7 +36,7 @@ const registries = {
   },
 };
 
-const state = { context: { input: { data: { x: 1 } } } };
+const state = { input: { data: { x: 1 } } };
 
 test('trace=off: no trace in output', () => {
   const artifact = prepareDataflow(source);

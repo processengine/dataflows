@@ -33,9 +33,9 @@ const validSource = {
   version: '1.0.0',
   title: 'Оценка клиента в АБС',
   schema: {
-    '$.context.data.payloads.clientComparison': { title: 'Payload', description: 'Payload data object.', fields: {} },
-    '$.context.data.facts.clientComparison': { title: 'Facts', description: 'Facts data object.', fields: { hasCriticalMismatches: schemaField('boolean') } },
-    '$.context.data.decisions.absClientResolution': { title: 'Decision', description: 'Decision data object.', fields: { outcome: schemaField('string') } },
+    '$.data.payloads.clientComparison': { title: 'Payload', description: 'Payload data object.', fields: {} },
+    '$.data.facts.clientComparison': { title: 'Facts', description: 'Facts data object.', fields: { hasCriticalMismatches: schemaField('boolean') } },
+    '$.data.decisions.absClientResolution': { title: 'Decision', description: 'Decision data object.', fields: { outcome: schemaField('string') } },
   },
   pipeline: [
     {
@@ -44,8 +44,8 @@ const validSource = {
       kind: 'payload',
       artefactId: 'mappings.abs.response_payload',
       contract: {
-        input: { refs: { '$': '$.context.effects.run_abs.waitResult.result' } },
-        output: { ref: '$.context.data.payloads.clientComparison' },
+        input: { refs: { '$': '$.steps.run_abs.latest.command.result' } },
+        output: { ref: '$.data.payloads.clientComparison' },
       },
     },
     {
@@ -54,8 +54,8 @@ const validSource = {
       kind: 'facts',
       artefactId: 'mappings.abs.client_comparison_facts',
       contract: {
-        input: { refs: { '$': '$.context.data.payloads.clientComparison' } },
-        output: { ref: '$.context.data.facts.clientComparison' },
+        input: { refs: { '$': '$.data.payloads.clientComparison' } },
+        output: { ref: '$.data.facts.clientComparison' },
       },
     },
     {
@@ -63,8 +63,8 @@ const validSource = {
       type: 'DECISIONS',
       artefactId: 'decisions.abs.client_resolution',
       contract: {
-        input: { refs: { '$': '$.context.data.facts.clientComparison' } },
-        output: { ref: '$.context.data.decisions.absClientResolution' },
+        input: { refs: { '$': '$.data.facts.clientComparison' } },
+        output: { ref: '$.data.decisions.absClientResolution' },
       },
     },
   ],
@@ -123,10 +123,10 @@ test('validateDataflow: duplicate item id', () => {
   assert.ok(r.diagnostics.some(d => d.code === 'DATAFLOW_ITEM_ID_DUPLICATE'));
 });
 
-test('validateDataflow: output ref outside $.context.data.*', () => {
+test('validateDataflow: output ref outside $.data.*', () => {
   const r = validateDataflow({
     ...validSource,
-    pipeline: [{ ...validSource.pipeline[0], contract: { input: { refs: { '$': '$.context.input.application' } }, output: { ref: '$.context.effects.x' } } }],
+    pipeline: [{ ...validSource.pipeline[0], contract: { input: { refs: { '$': '$.input.application' } }, output: { ref: '$.steps.x.latest.command.result' } } }],
   });
   assert.equal(r.ok, false);
   assert.ok(r.diagnostics.some(d => d.code === 'DATAFLOW_WRITE_FORBIDDEN_PATH'));
@@ -148,12 +148,12 @@ test('validateDataflow: parent/child path conflict', () => {
   const r = validateDataflow({
     ...validSource,
     schema: {
-      '$.context.data.facts.x': schemaNode(),
-      '$.context.data.facts.x.child': schemaNode(),
+      '$.data.facts.x': schemaNode(),
+      '$.data.facts.x.child': schemaNode(),
     },
     pipeline: [
-      { id: 'a', type: 'MAPPINGS', kind: 'facts', artefactId: 'x', contract: { input: { refs: { '$': '$.context.input.application' } }, output: { ref: '$.context.data.facts.x' } } },
-      { id: 'b', type: 'MAPPINGS', kind: 'facts', artefactId: 'y', contract: { input: { refs: { '$': '$.context.effects.e' } }, output: { ref: '$.context.data.facts.x.child' } } },
+      { id: 'a', type: 'MAPPINGS', kind: 'facts', artefactId: 'x', contract: { input: { refs: { '$': '$.input.application' } }, output: { ref: '$.data.facts.x' } } },
+      { id: 'b', type: 'MAPPINGS', kind: 'facts', artefactId: 'y', contract: { input: { refs: { '$': '$.steps.e.latest.command.result' } }, output: { ref: '$.data.facts.x.child' } } },
     ],
   });
   assert.equal(r.ok, false);
@@ -161,7 +161,7 @@ test('validateDataflow: parent/child path conflict', () => {
 });
 
 test('validateDataflow: in-place write', () => {
-  const ref = '$.context.data.facts.x';
+  const ref = '$.data.facts.x';
   const r = validateDataflow({
     ...validSource,
     schema: { [ref]: {} },
@@ -180,10 +180,10 @@ test('validateDataflow: MAPPINGS without kind', () => {
 test('validateDataflow: read-from-future-item detected', () => {
   const r = validateDataflow({
     ...validSource,
-    schema: { '$.context.data.facts.x': schemaNode(), '$.context.data.facts.y': schemaNode() },
+    schema: { '$.data.facts.x': schemaNode(), '$.data.facts.y': schemaNode() },
     pipeline: [
-      { id: 'item_a', type: 'MAPPINGS', kind: 'facts', artefactId: 'a', contract: { input: { refs: { '$': '$.context.data.facts.y' } }, output: { ref: '$.context.data.facts.x' } } },
-      { id: 'item_b', type: 'DECISIONS', artefactId: 'b', contract: { input: { refs: { '$': '$.context.data.facts.x' } }, output: { ref: '$.context.data.facts.y' } } },
+      { id: 'item_a', type: 'MAPPINGS', kind: 'facts', artefactId: 'a', contract: { input: { refs: { '$': '$.data.facts.y' } }, output: { ref: '$.data.facts.x' } } },
+      { id: 'item_b', type: 'DECISIONS', artefactId: 'b', contract: { input: { refs: { '$': '$.data.facts.x' } }, output: { ref: '$.data.facts.y' } } },
     ],
   });
   assert.equal(r.ok, false);
@@ -201,9 +201,9 @@ test('validateDataflow: output.ref not in schema is error', () => {
   const r = validateDataflow({
     ...validSource,
     schema: {
-      '$.context.data.facts.clientComparison': schemaNode(),
-      '$.context.data.decisions.absClientResolution': schemaNode(),
-      // missing $.context.data.payloads.clientComparison
+      '$.data.facts.clientComparison': schemaNode(),
+      '$.data.decisions.absClientResolution': schemaNode(),
+      // missing $.data.payloads.clientComparison
     },
     pipeline: [validSource.pipeline[0]], // writes to payloads.clientComparison — not in schema
   });
@@ -216,16 +216,16 @@ test('validateDataflow: output.ref not in schema is error', () => {
 test('validateDataflow: schema key without "$." is error', () => {
   const r = validateDataflow({
     ...validSource,
-    schema: { 'context.data.bad': schemaNode() },
+    schema: { 'data.bad': schemaNode() },
   });
   assert.equal(r.ok, false);
   assert.ok(r.diagnostics.some(d => d.code === 'DATAFLOW_SCHEMA_PATH_INVALID'), JSON.stringify(r.diagnostics));
 });
 
-test('validateDataflow: schema key outside $.context.data.* is error', () => {
+test('validateDataflow: schema key outside $.data.* is error', () => {
   const r = validateDataflow({
     ...validSource,
-    schema: { '$.context.input.something': schemaNode() },
+    schema: { '$.input.something': schemaNode() },
   });
   assert.equal(r.ok, false);
   assert.ok(r.diagnostics.some(d => d.code === 'DATAFLOW_SCHEMA_FORBIDDEN_PATH'), JSON.stringify(r.diagnostics));
@@ -243,7 +243,7 @@ test('validateDataflow: input.refs outside allowed roots is error', () => {
       artefactId: 'x',
       contract: {
         input: { refs: { '$': '$.some.random.place' } },
-        output: { ref: '$.context.data.facts.clientComparison' },
+        output: { ref: '$.data.facts.clientComparison' },
       },
     }],
   });
@@ -251,10 +251,10 @@ test('validateDataflow: input.refs outside allowed roots is error', () => {
   assert.ok(r.diagnostics.some(d => d.code === 'DATAFLOW_READ_FORBIDDEN_PATH'), JSON.stringify(r.diagnostics));
 });
 
-test('validateDataflow: input.refs may read explicit context bucket roots', () => {
+test('validateDataflow: input.refs may read State v2 roots and canonical latest EFFECT result', () => {
   const r = validateDataflow({
     ...validSource,
-    schema: { '$.context.data.payloads.compact': schemaNode() },
+    schema: { '$.data.payloads.compact': schemaNode() },
     pipeline: [{
       id: 'bucket_roots',
       type: 'MAPPINGS',
@@ -263,11 +263,14 @@ test('validateDataflow: input.refs may read explicit context bucket roots', () =
       contract: {
         input: {
           refs: {
-            input: '$.context.input',
-            effects: '$.context.effects',
+            input: '$.input',
+            data: '$.data',
+            addressCheck: '$.steps.address.latest.command.result',
+            addressEnvelope: '$.steps.address.latest.command',
+            subflowResult: '$.steps.resolve.latest.subflow',
           },
         },
-        output: { ref: '$.context.data.payloads.compact' },
+        output: { ref: '$.data.payloads.compact' },
       },
     }],
   });
@@ -288,26 +291,26 @@ test('prepareDataflow: returns prepared artifact with correct shape', () => {
 test('prepareDataflow: readSet includes input.refs direct path', () => {
   const source = {
     ...validSource,
-    schema: { '$.context.data.facts.combined': schemaNode() },
+    schema: { '$.data.facts.combined': schemaNode() },
     pipeline: [{
       id: 'map',
       type: 'MAPPINGS',
       kind: 'facts',
       artefactId: 'x',
       contract: {
-        input: { refs: { '$': '$.context.input.application' } },
-        output: { ref: '$.context.data.facts.combined' },
+        input: { refs: { '$': '$.input.application' } },
+        output: { ref: '$.data.facts.combined' },
       },
     }],
   };
   const artifact = prepareDataflow(source);
-  assert.deepEqual(artifact.readSet, ['$.context.input.application']);
+  assert.deepEqual(artifact.readSet, ['$.input.application']);
 });
 
 test('prepareDataflow: readSet includes every input.refs path once', () => {
   const source = {
     ...validSource,
-    schema: { '$.context.data.payloads.composite': schemaNode() },
+    schema: { '$.data.payloads.composite': schemaNode() },
     pipeline: [{
       id: 'map',
       type: 'MAPPINGS',
@@ -316,20 +319,20 @@ test('prepareDataflow: readSet includes every input.refs path once', () => {
       contract: {
         input: {
           refs: {
-            application: '$.context.input.application',
-            'context.currentDate': '$.context.input.currentDate',
-            previous: '$.context.data.facts.previous',
+            application: '$.input.application',
+            'request.currentDate': '$.input.currentDate',
+            previous: '$.data.facts.previous',
           },
         },
-        output: { ref: '$.context.data.payloads.composite' },
+        output: { ref: '$.data.payloads.composite' },
       },
     }],
   };
   const artifact = prepareDataflow(source);
   assert.deepEqual(artifact.readSet, [
-    '$.context.input.application',
-    '$.context.input.currentDate',
-    '$.context.data.facts.previous',
+    '$.input.application',
+    '$.input.currentDate',
+    '$.data.facts.previous',
   ]);
 });
 
@@ -357,7 +360,7 @@ test('prepareDataflow: resolves schemaRef', () => {
   const source = { ...rest, schemaRef: 'schema.abs' };
   const schemaRegistry = { get: (id) => id === 'schema.abs' ? { schema: validSource.schema } : undefined };
   const artifact = prepareDataflow(source, { schemaRegistry });
-  assert.ok(artifact.schema['$.context.data.facts.clientComparison']);
+  assert.ok(artifact.schema['$.data.facts.clientComparison']);
 });
 
 
@@ -365,11 +368,11 @@ test('validateDataflow: schema node requires title and description', () => {
   const r = validateDataflow({
     ...validSource,
     schema: {
-      '$.context.data.facts.x': { title: 'Facts without description', fields: {} },
+      '$.data.facts.x': { title: 'Facts without description', fields: {} },
     },
     pipeline: [{
       id: 'map', type: 'MAPPINGS', kind: 'facts', artefactId: 'mappings.x',
-      contract: { input: { refs: { '$': '$.context.input.application' } }, output: { ref: '$.context.data.facts.x' } },
+      contract: { input: { refs: { '$': '$.input.application' } }, output: { ref: '$.data.facts.x' } },
     }],
   });
   assert.equal(r.ok, false);
@@ -380,7 +383,7 @@ test('validateDataflow: schema fields require title and description', () => {
   const r = validateDataflow({
     ...validSource,
     schema: {
-      '$.context.data.facts.x': {
+      '$.data.facts.x': {
         title: 'Facts',
         description: 'Facts object.',
         fields: { ok: { type: 'boolean', title: 'OK' } },
@@ -388,7 +391,7 @@ test('validateDataflow: schema fields require title and description', () => {
     },
     pipeline: [{
       id: 'map', type: 'MAPPINGS', kind: 'facts', artefactId: 'mappings.x',
-      contract: { input: { refs: { '$': '$.context.input.application' } }, output: { ref: '$.context.data.facts.x' } },
+      contract: { input: { refs: { '$': '$.input.application' } }, output: { ref: '$.data.facts.x' } },
     }],
   });
   assert.equal(r.ok, false);
@@ -412,15 +415,26 @@ const makeStubRegistries = () => ({
 });
 
 const makeState = () => ({
-  context: { effects: { run_abs: { waitResult: { result: { clients: [{ id: 'CL-001' }] } } } } },
+  stateVersion: 'flow5-state-v2',
+  input: {},
+  data: {},
+  steps: {
+    run_abs: {
+      latestExecutionId: 'exec-001',
+      executions: [{
+        executionId: 'exec-001',
+        command: { result: { clients: [{ id: 'CL-001' }] } },
+      }],
+    },
+  },
 });
 
 test('executeDataflow: returns writes in order', () => {
   const artifact = prepareDataflow(validSource);
   const result = executeDataflow(artifact, { state: makeState(), registries: makeStubRegistries() });
   assert.equal(result.writes.length, 3);
-  assert.equal(result.writes[0].ref, '$.context.data.payloads.clientComparison');
-  assert.equal(result.writes[2].ref, '$.context.data.decisions.absClientResolution');
+  assert.equal(result.writes[0].ref, '$.data.payloads.clientComparison');
+  assert.equal(result.writes[2].ref, '$.data.decisions.absClientResolution');
 });
 
 test('executeDataflow: uses canonical { output } runtime result from mappings', () => {
@@ -517,7 +531,14 @@ test('executeDataflow: throws typed error for cyclic item output (not RangeError
 
 test('executeDataflow: throws typed error for non-JSON-safe input state', () => {
   const artifact = prepareDataflow(validSource);
-  const badState = { context: { effects: { run_abs: { waitResult: { result: undefined } } } } };
+  const badState = {
+    steps: {
+      run_abs: {
+        latestExecutionId: 'exec-001',
+        executions: [{ executionId: 'exec-001', command: { result: undefined } }],
+      },
+    },
+  };
   // undefined is not JSON-safe
   assert.throws(
     () => executeDataflow(artifact, { state: badState, registries: makeStubRegistries() }),
@@ -550,12 +571,12 @@ test('prepareDataflow: schemaRef output.ref not declared in resolved schema is c
       kind: 'facts',
       artefactId: 'mappings.bad',
       contract: {
-        input: { refs: { '$': '$.context.input.application' } },
-        output: { ref: '$.context.data.facts.notDeclared' },
+        input: { refs: { '$': '$.input.application' } },
+        output: { ref: '$.data.facts.notDeclared' },
       },
     }],
   };
-  const schemaRegistry = { get: () => ({ schema: { '$.context.data.facts.declared': schemaNode() } }) };
+  const schemaRegistry = { get: () => ({ schema: { '$.data.facts.declared': schemaNode() } }) };
   assert.throws(
     () => prepareDataflow(source, { schemaRegistry }),
     (err) => err instanceof DataflowCompileError && err.diagnostics.some(d => d.code === 'DATAFLOW_WRITE_NOT_IN_SCHEMA'),
@@ -566,15 +587,15 @@ test('executeDataflow: missing input.refs path throws before registry call', () 
   const source = {
     id: 'dataflow.input.refs.missing',
     version: '1.0.0',
-    schema: { '$.context.data.facts.x': schemaNode() },
+    schema: { '$.data.facts.x': schemaNode() },
     pipeline: [{
       id: 'map',
       type: 'MAPPINGS',
       kind: 'facts',
       artefactId: 'mappings.x',
       contract: {
-        input: { refs: { '$': '$.context.input.missing' } },
-        output: { ref: '$.context.data.facts.x' },
+        input: { refs: { '$': '$.input.missing' } },
+        output: { ref: '$.data.facts.x' },
       },
     }],
   };
@@ -582,8 +603,8 @@ test('executeDataflow: missing input.refs path throws before registry call', () 
   let called = false;
   const registries = { mappings: { get: () => ({}), executeMappings: () => { called = true; return { output: {} }; } } };
   assert.throws(
-    () => executeDataflow(artifact, { state: { context: { input: {} } }, registries }),
-    (err) => err instanceof DataflowRuntimeError && err.code === 'DATAFLOW_INPUT_REF_NOT_FOUND' && err.details.ref === '$.context.input.missing',
+    () => executeDataflow(artifact, { state: { input: {} }, registries }),
+    (err) => err instanceof DataflowRuntimeError && err.code === 'DATAFLOW_INPUT_REF_NOT_FOUND' && err.details.ref === '$.input.missing',
   );
   assert.equal(called, false);
 });
@@ -592,7 +613,7 @@ test('executeDataflow: input.refs assembles named compact input object', () => {
   const source = {
     id: 'dataflow.input.refs.composite',
     version: '1.0.0',
-    schema: { '$.context.data.payloads.compact': schemaNode() },
+    schema: { '$.data.payloads.compact': schemaNode() },
     pipeline: [{
       id: 'map',
       type: 'MAPPINGS',
@@ -601,13 +622,13 @@ test('executeDataflow: input.refs assembles named compact input object', () => {
       contract: {
         input: {
           refs: {
-            input: '$.context.input',
-            application: '$.context.input.application',
-            'context.currentDate': '$.context.input.currentDate',
-            addressCheck: '$.context.effects.address.waitResult.result',
+            input: '$.input',
+            application: '$.input.application',
+            'request.currentDate': '$.input.currentDate',
+            addressCheck: '$.steps.address.latest.command.result',
           },
         },
-        output: { ref: '$.context.data.payloads.compact' },
+        output: { ref: '$.data.payloads.compact' },
       },
     }],
   };
@@ -623,13 +644,17 @@ test('executeDataflow: input.refs assembles named compact input object', () => {
     },
   };
   const state = {
-    context: {
-      input: {
-        application: { id: 'APP-1' },
-        currentDate: '2026-05-18',
-      },
-      effects: {
-        address: { waitResult: { result: { outcome: 'ADDRESS_VERIFIED' } } },
+    input: {
+      application: { id: 'APP-1' },
+      currentDate: '2026-05-18',
+    },
+    steps: {
+      address: {
+        latestExecutionId: 'exec-address',
+        executions: [{
+          executionId: 'exec-address',
+          command: { result: { outcome: 'ADDRESS_VERIFIED' } },
+        }],
       },
     },
   };
@@ -640,7 +665,7 @@ test('executeDataflow: input.refs assembles named compact input object', () => {
       currentDate: '2026-05-18',
     },
     application: { id: 'APP-1' },
-    context: { currentDate: '2026-05-18' },
+    request: { currentDate: '2026-05-18' },
     addressCheck: { outcome: 'ADDRESS_VERIFIED' },
   });
   assert.deepEqual(result.writes[0].value, captured[0]);
@@ -650,19 +675,19 @@ test('executeDataflow: bare runtime value is invalid canonical result', () => {
   const source = {
     id: 'dataflow.canonical.runtime.result',
     version: '1.0.0',
-    schema: { '$.context.data.facts.x': schemaNode() },
+    schema: { '$.data.facts.x': schemaNode() },
     pipeline: [{
       id: 'map',
       type: 'MAPPINGS',
       kind: 'facts',
       artefactId: 'mappings.x',
-      contract: { input: { refs: { '$': '$.context.input.data' } }, output: { ref: '$.context.data.facts.x' } },
+      contract: { input: { refs: { '$': '$.input.data' } }, output: { ref: '$.data.facts.x' } },
     }],
   };
   const artifact = prepareDataflow(source);
   const registries = { mappings: { get: () => ({}), executeMappings: () => ({ output: 'business field', status: 'OK' }).output } };
   assert.throws(
-    () => executeDataflow(artifact, { state: { context: { input: { data: {} } } }, registries }),
+    () => executeDataflow(artifact, { state: { input: { data: {} } }, registries }),
     (err) => err instanceof DataflowRuntimeError && err.code === 'DATAFLOW_RUNTIME_RESULT_INVALID',
   );
 });
@@ -684,16 +709,16 @@ test('runtimeSchemaValidation=assert: throws on type mismatch', () => {
     id: 'dataflow.schema.test',
     version: '1.0.0',
     schema: {
-      '$.context.data.facts.x': schemaNode('Data object', { flag: schemaField('boolean') }),
+      '$.data.facts.x': schemaNode('Data object', { flag: schemaField('boolean') }),
     },
     pipeline: [{
       id: 'map', type: 'MAPPINGS', kind: 'facts', artefactId: 'mappings.x',
-      contract: { input: { refs: { '$': '$.context.input.data' } }, output: { ref: '$.context.data.facts.x' } },
+      contract: { input: { refs: { '$': '$.input.data' } }, output: { ref: '$.data.facts.x' } },
     }],
   };
   const artifact = prepareDataflow(source);
   const registries = { mappings: { get: () => ({}), executeMappings: () => ({ output: { flag: 'not-a-boolean' } }) } };
-  const state = { context: { input: { data: {} } } };
+  const state = { input: { data: {} } };
   assert.throws(
     () => executeDataflow(artifact, { state, registries }, { runtimeSchemaValidation: 'assert' }),
     (err) => err instanceof DataflowRuntimeError && err.code === 'DATAFLOW_OUTPUT_SCHEMA_INVALID',
@@ -743,7 +768,7 @@ test('formatDataflowRuntimeError: readable string', () => {
 test('validateDataflow: input contract without refs is invalid', () => {
   const r = validateDataflow({
     ...validSource,
-    schema: { '$.context.data.facts.x': schemaNode() },
+    schema: { '$.data.facts.x': schemaNode() },
     pipeline: [{
       id: 'missing_input_ref',
       type: 'MAPPINGS',
@@ -751,7 +776,7 @@ test('validateDataflow: input contract without refs is invalid', () => {
       artefactId: 'mappings.x',
       contract: {
         input: {},
-        output: { ref: '$.context.data.facts.x' },
+        output: { ref: '$.data.facts.x' },
       },
     }],
   });
@@ -762,7 +787,7 @@ test('validateDataflow: input contract without refs is invalid', () => {
 test('validateDataflow: input.refs "$" target cannot be mixed with named targets', () => {
   const r = validateDataflow({
     ...validSource,
-    schema: { '$.context.data.facts.x': schemaNode() },
+    schema: { '$.data.facts.x': schemaNode() },
     pipeline: [{
       id: 'ambiguous_input_refs',
       type: 'MAPPINGS',
@@ -771,11 +796,11 @@ test('validateDataflow: input.refs "$" target cannot be mixed with named targets
       contract: {
         input: {
           refs: {
-            '$': '$.context.input.application',
-            currentDate: '$.context.input.currentDate',
+            '$': '$.input.application',
+            currentDate: '$.input.currentDate',
           },
         },
-        output: { ref: '$.context.data.facts.x' },
+        output: { ref: '$.data.facts.x' },
       },
     }],
   });
@@ -786,15 +811,15 @@ test('validateDataflow: input.refs "$" target cannot be mixed with named targets
 test('validateDataflow: input.refs target path must be safe', () => {
   const r = validateDataflow({
     ...validSource,
-    schema: { '$.context.data.facts.x': schemaNode() },
+    schema: { '$.data.facts.x': schemaNode() },
     pipeline: [{
       id: 'unsafe_input_target',
       type: 'MAPPINGS',
       kind: 'facts',
       artefactId: 'mappings.x',
       contract: {
-        input: { refs: { 'payload.__proto__': '$.context.input.application' } },
-        output: { ref: '$.context.data.facts.x' },
+        input: { refs: { 'payload.__proto__': '$.input.application' } },
+        output: { ref: '$.data.facts.x' },
       },
     }],
   });
@@ -805,15 +830,15 @@ test('validateDataflow: input.refs target path must be safe', () => {
 test('validateDataflow: input contract rejects unsupported fields', () => {
   const r = validateDataflow({
     ...validSource,
-    schema: { '$.context.data.facts.x': schemaNode() },
+    schema: { '$.data.facts.x': schemaNode() },
     pipeline: [{
       id: 'strict_input_contract',
       type: 'MAPPINGS',
       kind: 'facts',
       artefactId: 'mappings.x',
       contract: {
-        input: { refs: { '$': '$.context.input.a' }, unsupported: true },
-        output: { ref: '$.context.data.facts.x' },
+        input: { refs: { '$': '$.input.a' }, unsupported: true },
+        output: { ref: '$.data.facts.x' },
       },
     }],
   });
@@ -841,25 +866,25 @@ test('executeDataflow: missing registry method throws typed runtime error', () =
   const source = {
     id: 'dataflow.registry.method',
     version: '1.0.0',
-    schema: { '$.context.data.facts.x': schemaNode() },
+    schema: { '$.data.facts.x': schemaNode() },
     pipeline: [{
       id: 'map',
       type: 'MAPPINGS',
       kind: 'facts',
       artefactId: 'mappings.x',
-      contract: { input: { refs: { '$': '$.context.input.data' } }, output: { ref: '$.context.data.facts.x' } },
+      contract: { input: { refs: { '$': '$.input.data' } }, output: { ref: '$.data.facts.x' } },
     }],
   };
   const artifact = prepareDataflow(source);
   assert.throws(
-    () => executeDataflow(artifact, { state: { context: { input: { data: {} } } }, registries: { mappings: { get: () => ({}) } } }),
+    () => executeDataflow(artifact, { state: { input: { data: {} } }, registries: { mappings: { get: () => ({}) } } }),
     (err) => err instanceof DataflowRuntimeError && err.code === 'DATAFLOW_REGISTRY_METHOD_MISSING',
   );
 });
 
 test('extractDataflowSchema: resolves schemaRef through registry', async () => {
   const { extractDataflowSchema } = await import('../dist/index.js');
-  const schema = { '$.context.data.facts.x': schemaNode('Data object', {}) };
+  const schema = { '$.data.facts.x': schemaNode('Data object', {}) };
   const result = extractDataflowSchema(
     { id: 'df', version: '1', schemaRef: 'schema.x', pipeline: [] },
     { schemaRegistry: { get: (id) => id === 'schema.x' ? { schema: schema } : undefined } },
@@ -893,16 +918,16 @@ test('validateDataflow: pipeline item rejects unsupported fields', () => {
 test('validateDataflow: RULES and DECISIONS reject kind field', () => {
   const rules = validateDataflow({
     ...validSource,
-    schema: { '$.context.data.checks.x': schemaNode() },
-    pipeline: [{ id: 'r', type: 'RULES', kind: 'facts', artefactId: 'rules.x', contract: { input: { refs: { '$': '$.context.input.application' } }, output: { ref: '$.context.data.checks.x' } } }],
+    schema: { '$.data.checks.x': schemaNode() },
+    pipeline: [{ id: 'r', type: 'RULES', kind: 'facts', artefactId: 'rules.x', contract: { input: { refs: { '$': '$.input.application' } }, output: { ref: '$.data.checks.x' } } }],
   });
   assert.equal(rules.ok, false);
   assert.ok(rules.diagnostics.some(d => d.code === 'DATAFLOW_ITEM_FORBIDDEN_FIELD' && d.details.field === 'kind'), JSON.stringify(rules.diagnostics));
 
   const decisions = validateDataflow({
     ...validSource,
-    schema: { '$.context.data.decisions.x': schemaNode() },
-    pipeline: [{ id: 'd', type: 'DECISIONS', kind: 'facts', artefactId: 'decisions.x', contract: { input: { refs: { '$': '$.context.input.application' } }, output: { ref: '$.context.data.decisions.x' } } }],
+    schema: { '$.data.decisions.x': schemaNode() },
+    pipeline: [{ id: 'd', type: 'DECISIONS', kind: 'facts', artefactId: 'decisions.x', contract: { input: { refs: { '$': '$.input.application' } }, output: { ref: '$.data.decisions.x' } } }],
   });
   assert.equal(decisions.ok, false);
   assert.ok(decisions.diagnostics.some(d => d.code === 'DATAFLOW_ITEM_FORBIDDEN_FIELD' && d.details.field === 'kind'), JSON.stringify(decisions.diagnostics));
@@ -911,15 +936,15 @@ test('validateDataflow: RULES and DECISIONS reject kind field', () => {
 test('validateDataflow: item contract and output reject unsupported fields', () => {
   const r = validateDataflow({
     ...validSource,
-    schema: { '$.context.data.facts.x': schemaNode() },
+    schema: { '$.data.facts.x': schemaNode() },
     pipeline: [{
       id: 'strict_contract',
       type: 'MAPPINGS',
       kind: 'facts',
       artefactId: 'mappings.x',
       contract: {
-        input: { refs: { '$': '$.context.input.application' } },
-        output: { ref: '$.context.data.facts.x', unsupported: true },
+        input: { refs: { '$': '$.input.application' } },
+        output: { ref: '$.data.facts.x', unsupported: true },
         retry: 3,
       },
     }],
@@ -933,8 +958,8 @@ test('validateDataflow: artifactRegistries validates RULES and DECISIONS referen
   const rulesSource = {
     id: 'df.rules.registry',
     version: '1',
-    schema: { '$.context.data.checks.x': schemaNode() },
-    pipeline: [{ id: 'r', type: 'RULES', artefactId: 'rules.x', contract: { input: { refs: { '$': '$.context.input.application' } }, output: { ref: '$.context.data.checks.x' } } }],
+    schema: { '$.data.checks.x': schemaNode() },
+    pipeline: [{ id: 'r', type: 'RULES', artefactId: 'rules.x', contract: { input: { refs: { '$': '$.input.application' } }, output: { ref: '$.data.checks.x' } } }],
   };
   const rulesResult = validateDataflow(rulesSource, { artifactRegistries: { rules: { get: () => undefined } } });
   assert.equal(rulesResult.ok, false);
@@ -943,8 +968,8 @@ test('validateDataflow: artifactRegistries validates RULES and DECISIONS referen
   const decisionsSource = {
     id: 'df.decisions.registry',
     version: '1',
-    schema: { '$.context.data.decisions.x': schemaNode() },
-    pipeline: [{ id: 'd', type: 'DECISIONS', artefactId: 'decisions.x', contract: { input: { refs: { '$': '$.context.input.application' } }, output: { ref: '$.context.data.decisions.x' } } }],
+    schema: { '$.data.decisions.x': schemaNode() },
+    pipeline: [{ id: 'd', type: 'DECISIONS', artefactId: 'decisions.x', contract: { input: { refs: { '$': '$.input.application' } }, output: { ref: '$.data.decisions.x' } } }],
   };
   const decisionsResult = validateDataflow(decisionsSource, { artifactRegistries: { decisions: { get: () => undefined } } });
   assert.equal(decisionsResult.ok, false);
@@ -979,11 +1004,11 @@ test('executeDataflow: failure trace is attached to runtime error when trace is 
   );
 });
 
-test('executeDataflow: runtime rejects manually corrupted output.ref outside $.context.data.*', () => {
+test('executeDataflow: runtime rejects manually corrupted output.ref outside $.data.*', () => {
   const artifact = prepareDataflow(validSource, { freeze: false });
   artifact.items = [{
     ...artifact.items[0],
-    contract: { input: { refs: { '$': '$.context.effects.run_abs.waitResult.result' } }, output: { ref: '$.context.effects.bad' } },
+    contract: { input: { refs: { '$': '$.steps.run_abs.latest.command.result' } }, output: { ref: '$.steps.bad.latest.command.result' } },
   }];
   assert.throws(
     () => executeDataflow(artifact, { state: makeState(), registries: makeStubRegistries() }),
@@ -995,7 +1020,7 @@ test('executeDataflow: runtime rejects manually corrupted output.ref missing in 
   const artifact = prepareDataflow(validSource, { freeze: false });
   artifact.items = [{
     ...artifact.items[0],
-    contract: { input: { refs: { '$': '$.context.effects.run_abs.waitResult.result' } }, output: { ref: '$.context.data.facts.notDeclared' } },
+    contract: { input: { refs: { '$': '$.steps.run_abs.latest.command.result' } }, output: { ref: '$.data.facts.notDeclared' } },
   }];
   assert.throws(
     () => executeDataflow(artifact, { state: makeState(), registries: makeStubRegistries() }),
@@ -1008,16 +1033,16 @@ test('runtimeSchemaValidation=assert: schema node with fields rejects scalar out
     id: 'dataflow.schema.scalar.test',
     version: '1.0.0',
     schema: {
-      '$.context.data.facts.x': schemaNode('Data object', { flag: schemaField('boolean') }),
+      '$.data.facts.x': schemaNode('Data object', { flag: schemaField('boolean') }),
     },
     pipeline: [{
       id: 'map', type: 'MAPPINGS', kind: 'facts', artefactId: 'mappings.x',
-      contract: { input: { refs: { '$': '$.context.input.data' } }, output: { ref: '$.context.data.facts.x' } },
+      contract: { input: { refs: { '$': '$.input.data' } }, output: { ref: '$.data.facts.x' } },
     }],
   };
   const artifact = prepareDataflow(source);
   const registries = { mappings: { get: () => ({}), executeMappings: () => ({ output: 'not-an-object' }) } };
-  const state = { context: { input: { data: {} } } };
+  const state = { input: { data: {} } };
   assert.throws(
     () => executeDataflow(artifact, { state, registries }, { runtimeSchemaValidation: 'assert' }),
     (err) => err instanceof DataflowRuntimeError && err.code === 'DATAFLOW_OUTPUT_SCHEMA_INVALID',

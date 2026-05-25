@@ -4,6 +4,20 @@ All notable changes to `@processengine/dataflows` are documented here.
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-05-25
+
+### Changed
+
+- Moved Flow 5 dataflow refs to State v2 roots.
+- `contract.output.ref` and schema keys now must be under `$.data.*`.
+- `contract.input.refs` may read `$.input`, `$.data`, and canonical post-WAIT bridge paths `$.steps.<effectStepId>.latest.command|subflow.*`.
+- Examples, tests, docs, and pack smoke now use State v2 paths.
+
+### Removed
+
+- Removed support for `$.context.data.*`, `$.context.input.*`, and `$.context.effects.*` refs.
+- Removed whole-bucket `$.steps` reads; DATA may read only canonical `latest.command|subflow` bridge paths from step executions.
+
 ## [2.0.0] — 2026-05-18
 
 ### Changed
@@ -12,7 +26,7 @@ All notable changes to `@processengine/dataflows` are documented here.
 - Added direct `$` target semantics for single-value child input.
 - Added named and nested target semantics for compact child input assembly.
 - `readSet` now derives every declared input ref from `contract.input.refs`.
-- Read refs may target `$.context.input`, `$.context.effects`, `$.context.data`, or nested paths under those buckets.
+- Read refs may target `$.input`, `$.steps`, `$.data`, or nested paths under those buckets.
 
 ### Removed
 

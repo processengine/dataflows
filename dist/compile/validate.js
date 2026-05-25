@@ -22,7 +22,7 @@ export function validateDataflowSource(source, options = {}) {
       diagnostics.push(makeDiagnostic({
         code: 'DATAFLOW_SOURCE_FORBIDDEN_FIELD',
         level: 'error',
-        message: `source.${field} is not part of the dataflow v2 contract`,
+        message: `source.${field} is not part of the dataflow v3 contract`,
         path: field,
         details: { field }
       }));
@@ -99,7 +99,7 @@ export function validateDataflowSource(source, options = {}) {
         diagnostics.push(makeDiagnostic({
           code: 'DATAFLOW_ITEM_FORBIDDEN_FIELD',
           level: 'error',
-          message: `pipeline item field "${field}" is not part of the dataflow v2 item contract`,
+          message: `pipeline item field "${field}" is not part of the dataflow v3 item contract`,
           path: `${base}.${field}`,
           details: { field }
         }));
@@ -144,7 +144,7 @@ export function validateDataflowSource(source, options = {}) {
     if (!isValidPathRef(outputRef)) {
       diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_PATH_INVALID', level: 'error', message: `contract.output.ref must be a valid PathRef starting with "$.": "${outputRef}"`, path: `${base}.contract.output.ref` }));
     } else if (!isWritablePath(outputRef)) {
-      diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_WRITE_FORBIDDEN_PATH', level: 'error', message: `contract.output.ref must start with "$.context.data.": "${outputRef}"`, path: `${base}.contract.output.ref`, details: { ref: outputRef } }));
+      diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_WRITE_FORBIDDEN_PATH', level: 'error', message: `contract.output.ref must start with "$.data.": "${outputRef}"`, path: `${base}.contract.output.ref`, details: { ref: outputRef } }));
     } else {
       if (resolvedSchema !== null && !resolvedSchema[outputRef]) {
         diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_WRITE_NOT_IN_SCHEMA', level: 'error', message: `contract.output.ref "${outputRef}" is not declared in schema`, path: `${base}.contract.output.ref`, details: { ref: outputRef } }));
@@ -204,7 +204,7 @@ function validateDataflowSchemaKeys(schema, diagnostics, path) {
       continue;
     }
     if (!isSchemaKey(key)) {
-      diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_SCHEMA_FORBIDDEN_PATH', level: 'error', message: `schema key must start with "$.context.data.": "${key}"`, path, details: { key } }));
+      diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_SCHEMA_FORBIDDEN_PATH', level: 'error', message: `schema key must start with "$.data.": "${key}"`, path, details: { key } }));
       continue;
     }
     validateDataflowSchemaNode(node, diagnostics, `${path}.${key}`, key);
@@ -220,7 +220,7 @@ function validateDataflowSchemaNode(node, diagnostics, path, key) {
   const allowedNodeFields = new Set(['title', 'description', 'fields']);
   for (const field of Object.keys(node)) {
     if (!allowedNodeFields.has(field)) {
-      diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_SCHEMA_NODE_FORBIDDEN_FIELD', level: 'error', message: `schema node field "${field}" is not part of the dataflow v2 schema contract`, path: `${path}.${field}`, details: { key, field } }));
+      diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_SCHEMA_NODE_FORBIDDEN_FIELD', level: 'error', message: `schema node field "${field}" is not part of the dataflow v3 schema contract`, path: `${path}.${field}`, details: { key, field } }));
     }
   }
 
@@ -255,7 +255,7 @@ function validateDataflowSchemaField(fieldNode, diagnostics, path, schemaKey, fi
   const allowedFieldFields = new Set(['type', 'title', 'description']);
   for (const field of Object.keys(fieldNode)) {
     if (!allowedFieldFields.has(field)) {
-        diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_SCHEMA_FIELD_FORBIDDEN_FIELD', level: 'error', message: `schema field property "${field}" is not part of the dataflow v2 schema field contract`, path: `${path}.${field}`, details: { schemaKey, fieldName, field } }));
+        diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_SCHEMA_FIELD_FORBIDDEN_FIELD', level: 'error', message: `schema field property "${field}" is not part of the dataflow v3 schema field contract`, path: `${path}.${field}`, details: { schemaKey, fieldName, field } }));
     }
   }
 
@@ -277,7 +277,7 @@ function validateContractFields(contract, diagnostics, path) {
       diagnostics.push(makeDiagnostic({
         code: 'DATAFLOW_ITEM_CONTRACT_FORBIDDEN_FIELD',
         level: 'error',
-        message: `item.contract.${field} is not part of the dataflow v2 contract`,
+        message: `item.contract.${field} is not part of the dataflow v3 contract`,
         path: `${path}.${field}`,
         details: { field }
       }));
@@ -295,7 +295,7 @@ function validateOutputContract(output, diagnostics, path) {
       diagnostics.push(makeDiagnostic({
         code: 'DATAFLOW_ITEM_CONTRACT_FORBIDDEN_FIELD',
         level: 'error',
-        message: `item.contract.output.${field} is not supported in dataflows v2; use only item.contract.output.ref`,
+        message: `item.contract.output.${field} is not supported in dataflows v3; use only item.contract.output.ref`,
         path: `${path}.${field}`,
         details: { field }
       }));
@@ -345,7 +345,7 @@ function validateInputContract(input, diagnostics, path) {
 
   for (const key of Object.keys(input)) {
     if (key !== 'refs') {
-      diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_ITEM_CONTRACT_FORBIDDEN_FIELD', level: 'error', message: `item.contract.input.${key} is not supported in dataflows v2; use only item.contract.input.refs`, path: `${path}.${key}`, details: { field: key } }));
+      diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_ITEM_CONTRACT_FORBIDDEN_FIELD', level: 'error', message: `item.contract.input.${key} is not supported in dataflows v3; use only item.contract.input.refs`, path: `${path}.${key}`, details: { field: key } }));
     }
   }
 
@@ -373,7 +373,7 @@ function validateInputContract(input, diagnostics, path) {
       continue;
     }
     if (!isReadablePath(ref)) {
-      diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_READ_FORBIDDEN_PATH', level: 'error', message: `contract.input.refs.${targetPath} must be $.context.input, $.context.effects, $.context.data, or a nested path under one of them: "${ref}"`, path: `${path}.refs.${targetPath}`, details: { ref, targetPath } }));
+      diagnostics.push(makeDiagnostic({ code: 'DATAFLOW_READ_FORBIDDEN_PATH', level: 'error', message: `contract.input.refs.${targetPath} must read $.input, $.data, or canonical $.steps.<effect>.latest.command|subflow paths: "${ref}"`, path: `${path}.refs.${targetPath}`, details: { ref, targetPath } }));
     }
   }
   return refs;

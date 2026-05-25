@@ -2,9 +2,9 @@
   "id": "dataflow.example.happy_path",
   "version": "1.0.0",
   "title": "Happy path example",
-  "description": "Reads application input, maps it into facts, and writes the facts into context.data.",
+  "description": "Reads application input, maps it into facts, and writes the facts into data.",
   "schema": {
-    "$.context.data.facts.application": {
+    "$.data.facts.application": {
       "title": "Application facts",
       "fields": {
         "ok": {
@@ -27,11 +27,11 @@
       "contract": {
         "input": {
           "refs": {
-            "$": "$.context.input.application"
+            "$": "$.input.application"
           }
         },
         "output": {
-          "ref": "$.context.data.facts.application"
+          "ref": "$.data.facts.application"
         }
       }
     }

@@ -30,7 +30,7 @@ const source = {
   id: 'dataflow.example',
   version: '1.0.0',
   schema: {
-    '$.context.data.facts.result': {
+    '$.data.facts.result': {
       title: 'Result facts',
       description: 'Facts produced from the input application for the quick start example.',
       fields: {
@@ -48,8 +48,8 @@ const source = {
     kind: 'facts',
     artefactId: 'mappings.example',
     contract: {
-      input: { refs: { '$': '$.context.input.application' } },
-      output: { ref: '$.context.data.facts.result' }
+      input: { refs: { '$': '$.input.application' } },
+      output: { ref: '$.data.facts.result' }
     }
   }]
 };
@@ -61,7 +61,7 @@ if (!validation.ok) throw new Error('Invalid');
 const artifact = prepareDataflow(source);
 
 // 3. Execute
-const state = { context: { input: { application: { ok: true } }, data: {} } };
+const state = { input: { application: { ok: true } }, data: {} };
 const registries = {
   mappings: {
     get: (id) => ({ id }),
@@ -89,8 +89,8 @@ Every pipeline item has exactly one input contract: `input.refs`.
 
 ```js
 contract: {
-  input: { refs: { '$': '$.context.data.payloads.clientComparison' } },
-  output: { ref: '$.context.data.facts.clientComparison' }
+  input: { refs: { '$': '$.data.payloads.clientComparison' } },
+  output: { ref: '$.data.facts.clientComparison' }
 }
 ```
 
@@ -100,16 +100,16 @@ The special `$` target passes the resolved state value as the whole child input.
 contract: {
   input: {
     refs: {
-      payload: '$.context.input.application',
-      'context.currentDate': '$.context.input.currentDate',
-      effects: '$.context.effects'
+      payload: '$.input.application',
+      'request.currentDate': '$.input.currentDate',
+      addressCheck: '$.steps.address.latest.command.result'
     }
   },
-  output: { ref: '$.context.data.payloads.clientComparison' }
+  output: { ref: '$.data.payloads.clientComparison' }
 }
 ```
 
-The `$` target cannot be mixed with named targets. Read refs may point to `$.context.input`, `$.context.effects`, `$.context.data`, or nested paths under those buckets.
+The `$` target cannot be mixed with named targets. Read refs may point to `$.input`, `$.data`, or canonical post-WAIT bridge paths such as `$.steps.<effectStepId>.latest.command.result`.
 
 Schema nodes and fields are part of the human-readable contract. Each schema node and each declared field must have both `title` and `description`. This keeps dataflow artifacts usable as code-as-docs and makes the data contract readable in Flow UI, reviews, and business-requirement traceability.
 
@@ -123,7 +123,7 @@ executeDataflow(artifact, input, options?) → DataflowOutput
 
 ## Non-goals
 
-`@processengine/dataflows` does not know the flow graph, does not move `currentStepId`, does not persist state, and does not own retry/fail policy.
+`@processengine/dataflows` does not know the flow graph, does not move `current.stepId`, does not persist state, and does not own retry/fail policy.
 
 ## Examples
 

@@ -2,7 +2,7 @@
 
 ## From Flow 3 PROCESS/MAPPINGS + PROCESS/DECISIONS chains to PROCESS/DATA + dataflow artifact
 
-`@processengine/dataflows` v2 is part of the Flow 5 hard breaking model.
+`@processengine/dataflows` v3 is part of the Flow 5 hard breaking model.
 Existing Flow 3 artifacts are not auto-migrated. Flow 5 processes are rewritten.
 
 ### Rewrite path
@@ -11,11 +11,11 @@ Existing Flow 3 artifacts are not auto-migrated. Flow 5 processes are rewritten.
 PROCESS/MAPPINGS / PROCESS/RULES / PROCESS/DECISIONS chains
   → PROCESS/DATA + dataflow artifact
 
-context.facts.*      → context.data.facts.*
-context.decisions.*  → context.data.decisions.*
-context.checks.*     → context.data.checks.*
-result mappings      → context.data.results.*
-payload-like refs    → context.data.payloads.*
+facts.*      → data.facts.*
+decisions.*  → data.decisions.*
+checks.*     → data.checks.*
+result mappings      → data.results.*
+payload-like refs    → data.payloads.*
 ```
 
 ### Dataflow input contract
@@ -26,8 +26,8 @@ Direct single-value input:
 
 ```js
 contract: {
-  input: { refs: { '$': '$.context.input.application' } },
-  output: { ref: '$.context.data.facts.application' }
+  input: { refs: { '$': '$.input.application' } },
+  output: { ref: '$.data.facts.application' }
 }
 ```
 
@@ -37,12 +37,12 @@ Composite compact input:
 contract: {
   input: {
     refs: {
-      payload: '$.context.input.application',
-      'context.currentDate': '$.context.input.currentDate',
-      effects: '$.context.effects'
+      payload: '$.input.application',
+      'request.currentDate': '$.input.currentDate',
+      addressCheck: '$.steps.address.latest.command.result'
     }
   },
-  output: { ref: '$.context.data.payloads.applicationCheck' }
+  output: { ref: '$.data.payloads.applicationCheck' }
 }
 ```
 

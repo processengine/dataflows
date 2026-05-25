@@ -6,7 +6,7 @@ Minimum supported: **20.19.0**
 
 ## Public contract
 
-The following constitute the public contract of v2:
+The following constitute the public contract of v3:
 
 - Public API names and signatures (`validateDataflow`, `prepareDataflow`, `executeDataflow`, `extractDataflowSchema`, formatters, error classes)
 - `DataflowSource` format

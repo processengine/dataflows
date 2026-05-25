@@ -1,4 +1,4 @@
-# `@processengine/dataflows` v2 — SPEC_RU
+# `@processengine/dataflows` v3 — SPEC_RU
 
 **Статус:** Draft  
 **Версия спецификации:** 0.1  
@@ -41,7 +41,7 @@
 
 ## 1. Что нормативно определяется этим документом
 
-Этот документ является нормативной спецификацией пакета `@processengine/dataflows` v2.
+Этот документ является нормативной спецификацией пакета `@processengine/dataflows` v3.
 
 Нормативно определяются:
 
@@ -125,7 +125,7 @@ orchestrator
 - не знает flow-граф;
 - не планирует process steps;
 - не вызывает `reduce`;
-- не двигает `currentStepId`;
+- не двигает `current.stepId`;
 - не сохраняет state;
 - не владеет retry/fail policy;
 - не исполняет `PROCESS/DATA` как flow-level step самостоятельно;
@@ -259,7 +259,7 @@ interface ValidateDataflowOptions {
 | `schemaRegistry` | используется для разрешения `schemaRef` |
 | `artifactRegistries` | используется для проверки существования referenced artifacts и MAPPINGS kind consistency |
 
-`@processengine/dataflows` v2 валидирует локальный dataflow artifact. Проверки полной Process Data Schema и всего artifact-set принадлежат отдельному artifact-set compiler, а не этому runtime-пакету.
+`@processengine/dataflows` v3 валидирует локальный dataflow artifact. Проверки полной Process Data Schema и всего artifact-set принадлежат отдельному artifact-set compiler, а не этому runtime-пакету.
 
 ### 5.2. `PrepareDataflowOptions`
 
@@ -296,7 +296,7 @@ trace: 'off'
 runtimeSchemaValidation: false
 ```
 
-`runtimeSchemaValidation: "assert"` в v2 является минимальной проверкой объявленных top-level fields. Если schema node содержит `fields`, output должен быть plain object; для присутствующих полей с `type` проверяется фактический JSON type. V2 не выполняет full JSON Schema validation: не проверяет required, additionalProperties, nested fields, array items и nullability.
+`runtimeSchemaValidation: "assert"` в v3 является минимальной проверкой объявленных top-level fields. Если schema node содержит `fields`, output должен быть plain object; для присутствующих полей с `type` проверяется фактический JSON type. v3 не выполняет full JSON Schema validation: не проверяет required, additionalProperties, nested fields, array items и nullability.
 
 ---
 
@@ -403,7 +403,7 @@ interface DataflowPipelineItemBase {
 }
 ```
 
-`contract.input` has exactly one normative v2 shape: `{ refs: Record<InputTargetPath, PathRef> }`.
+`contract.input` has exactly one normative v3 shape: `{ refs: Record<InputTargetPath, PathRef> }`.
 `contract.input.refs` reads one or more values from `workingState` and builds the child input.
 The special target `$` passes the resolved value as the whole child input and must not be mixed with named targets.
 Named targets assemble a compact object; dotted targets create nested objects.
@@ -442,7 +442,7 @@ Compile constraints:
 - referenced mapping artifact обязан иметь `kind`;
 - `item.kind` должен совпадать с `mapping.kind`;
 - output ref должен быть объявлен в schema;
-- output ref должен находиться под `$.context.data.*`.
+- output ref должен находиться под `$.data.*`.
 
 ### 7.3. RULES item semantics
 
@@ -463,7 +463,7 @@ Runtime semantics:
 Рекомендуемый output namespace:
 
 ```text
-$.context.data.checks.*
+$.data.checks.*
 ```
 
 Это рекомендация модели данных, а не магическое runtime-правило. Источник истины — `contract.output.ref` и schema.
@@ -487,7 +487,7 @@ Runtime semantics:
 Рекомендуемый output namespace:
 
 ```text
-$.context.data.decisions.*
+$.data.decisions.*
 ```
 
 ---
@@ -547,12 +547,12 @@ type JsonValue =
 Input refs могут читать:
 
 ```text
-$.context.input
-$.context.input.*
-$.context.effects
-$.context.effects.*
-$.context.data
-$.context.data.*
+$.input
+$.input.*
+$.data
+$.data.*
+$.steps.<effectStepId>.latest.command.*
+$.steps.<effectStepId>.latest.subflow.*
 ```
 
 ### 9.2. Write refs
@@ -560,18 +560,17 @@ $.context.data.*
 Output refs могут писать только:
 
 ```text
-$.context.data.*
+$.data.*
 ```
 
 Запрещено писать в:
 
 ```text
-$.context.input.*
-$.context.effects.*
-$.context.steps.*
+$.input.*
+$.steps.*
 $.result
 $.status
-любые paths вне $.context.data.*
+любые paths вне $.data.*
 ```
 
 ### 9.3. Read-after-write scope
@@ -621,7 +620,7 @@ Inline schema находится внутри dataflow source.
 ```json
 {
   "schema": {
-    "$.context.data.facts.clientComparison": {
+    "$.data.facts.clientComparison": {
       "title": "Факты по клиенту",
       "description": "Набор признаков по найденным карточкам клиента, используемый decision-слоем.",
       "fields": {
@@ -661,13 +660,13 @@ DATAFLOW_SCHEMA_REF_NOT_FOUND
 Пример:
 
 ```text
-contract.output.ref = $.context.data.facts.clientComparison
+contract.output.ref = $.data.facts.clientComparison
 ```
 
 schema must contain:
 
 ```text
-$.context.data.facts.clientComparison
+$.data.facts.clientComparison
 ```
 
 ---
@@ -700,7 +699,7 @@ $.context.data.facts.clientComparison
    - `$.` prefix.
 
 5. **Reference validation**
-   - output refs under `$.context.data.*`;
+   - output refs under `$.data.*`;
    - duplicate writes;
    - in-place read/write;
    - output refs declared in schema;
@@ -868,14 +867,14 @@ executeDataflow(artifact, input, options):
     runtimeResult = execute item using canonical registry runtime
     assert runtimeResult has canonical shape { output, trace? }
     itemOutput = runtimeResult.output
-    ignore runtimeResult.trace in dataflows v2
+    ignore runtimeResult.trace in dataflows v3
 
     assert itemOutput is JSON-safe
-    assert item.contract.output.ref starts with $.context.data.
+    assert item.contract.output.ref starts with $.data.
     assert item.contract.output.ref is declared in artifact.schema
 
     if runtimeSchemaValidation === 'assert':
-      validate v2 minimal declared top-level field types of itemOutput against schema at output ref; if schema node declares fields, itemOutput must be object
+      validate v3 minimal declared top-level field types of itemOutput against schema at output ref; if schema node declares fields, itemOutput must be object
 
     writes.push({
       ref: item.contract.output.ref,
@@ -1137,7 +1136,7 @@ Trace must not become an accidental leak channel. `ExecuteDataflowOptions.redact
 | Duplicate item id | compile error `DATAFLOW_ITEM_ID_DUPLICATE` |
 | Duplicate output ref | compile error `DATAFLOW_WRITE_CONFLICT` |
 | any input.refs value === output.ref | compile error `DATAFLOW_INPLACE_WRITE` |
-| Output ref outside `$.context.data.*` | compile error `DATAFLOW_WRITE_FORBIDDEN_PATH` |
+| Output ref outside `$.data.*` | compile error `DATAFLOW_WRITE_FORBIDDEN_PATH` |
 | Output ref not in schema | compile error `DATAFLOW_WRITE_NOT_IN_SCHEMA` |
 | Read from future item | compile error `DATAFLOW_READ_FROM_FUTURE_ITEM` |
 | Missing input ref at runtime | runtime error `DATAFLOW_INPUT_REF_NOT_FOUND` |
@@ -1173,7 +1172,7 @@ If a pipeline item returns a non-JSON-safe output, `executeDataflow` must fail w
 
 ### 22.1. rules → dataflow
 
-`RULES` item accepts direct output of `evaluateRules(...)` as JSON-safe value and writes it to `$.context.data.checks.*` or another schema-declared output ref.
+`RULES` item accepts direct output of `evaluateRules(...)` as JSON-safe value and writes it to `$.data.checks.*` or another schema-declared output ref.
 
 ### 22.2. mappings → decisions through dataflow
 
@@ -1183,9 +1182,9 @@ Required pattern:
 
 ```text
 MAPPINGS kind=facts
-  output: $.context.data.facts.X
+  output: $.data.facts.X
 DECISIONS
-  input: $.context.data.facts.X
+  input: $.data.facts.X
 ```
 
 ### 22.3. dataflow → semantics.reduce
@@ -1227,8 +1226,8 @@ See example in [6. Source dataflow artifact](#6-source-dataflow-artifact).
       "kind": "facts",
       "artefactId": "mappings.abs.client_comparison_facts",
       "contract": {
-        "input": { "ref": "$.context.data.payloads.clientComparison" },
-        "output": { "ref": "$.context.data.facts.clientComparison" }
+        "input": { "ref": "$.data.payloads.clientComparison" },
+        "output": { "ref": "$.data.facts.clientComparison" }
       }
     }
   ]
@@ -1287,10 +1286,10 @@ try {
   "id": "dataflow.abs.evaluate_resolution",
   "version": "1.0.0",
   "schema": {
-    "$.context.data.facts.clientComparison": { "title": "Факты по клиенту", "description": "Факты, используемые для выбора сценария обработки клиента.", "fields": {} }
+    "$.data.facts.clientComparison": { "title": "Факты по клиенту", "description": "Факты, используемые для выбора сценария обработки клиента.", "fields": {} }
   },
-  "readSet": ["$.context.data.payloads.clientComparison"],
-  "writeSet": ["$.context.data.facts.clientComparison"],
+  "readSet": ["$.data.payloads.clientComparison"],
+  "writeSet": ["$.data.facts.clientComparison"],
   "items": [
     {
       "id": "derive_comparison_facts",
@@ -1298,8 +1297,8 @@ try {
       "kind": "facts",
       "artefactId": "mappings.abs.client_comparison_facts",
       "contract": {
-        "input": { "ref": "$.context.data.payloads.clientComparison" },
-        "output": { "ref": "$.context.data.facts.clientComparison" }
+        "input": { "ref": "$.data.payloads.clientComparison" },
+        "output": { "ref": "$.data.facts.clientComparison" }
       }
     }
   ]
@@ -1312,7 +1311,7 @@ try {
 {
   "writes": [
     {
-      "ref": "$.context.data.facts.clientComparison",
+      "ref": "$.data.facts.clientComparison",
       "itemId": "derive_comparison_facts",
       "value": {
         "hasCriticalMismatches": false,
@@ -1338,8 +1337,8 @@ try {
   "at": "2026-05-17T10:00:00.000Z",
   "outcome": "completed",
   "details": {
-    "inputRef": "$.context.data.payloads.clientComparison",
-    "outputRef": "$.context.data.facts.clientComparison"
+    "inputRef": "$.data.payloads.clientComparison",
+    "outputRef": "$.data.facts.clientComparison"
   }
 }
 ```
@@ -1377,7 +1376,7 @@ Breaking changes include:
 
 ## 25. Migration
 
-`@processengine/dataflows` v2 is introduced as part of Flow 5 hard breaking model.
+`@processengine/dataflows` v3 is introduced as part of Flow 5 hard breaking model.
 
 Migration from Flow3 process artifacts is a rewrite:
 
@@ -1385,17 +1384,17 @@ Migration from Flow3 process artifacts is a rewrite:
 PROCESS/MAPPINGS / PROCESS/RULES / PROCESS/DECISIONS chains
   → PROCESS/DATA + dataflow artifact
 
-context.facts.*
-  → context.data.facts.*
+facts.*
+  → data.facts.*
 
-context.decisions.*
-  → context.data.decisions.*
+decisions.*
+  → data.decisions.*
 
-context.checks.*
-  → context.data.checks.*
+checks.*
+  → data.checks.*
 
 result mappings
-  → context.data.results.*
+  → data.results.*
 ```
 
 Mapping artifacts must be updated to `@processengine/mappings` v3 with required `kind`.
@@ -1481,7 +1480,7 @@ Release readiness requires:
 - Duplicate item id produces diagnostic.
 - Duplicate output ref produces diagnostic.
 - In-place read/write produces diagnostic.
-- Output ref outside `$.context.data.*` produces diagnostic.
+- Output ref outside `$.data.*` produces diagnostic.
 - Output ref not in schema produces diagnostic.
 - Dynamic refs produce diagnostic.
 
@@ -1502,7 +1501,7 @@ Release readiness requires:
 - Returns explicit `writes[]`.
 - Does not return partial writes on failure.
 - Throws if item output is not JSON-safe.
-- Optional runtime schema validation works within the documented v2 minimal field-type assertion limits.
+- Optional runtime schema validation works within the documented v3 minimal field-type assertion limits.
 
 ### 27.5. Trace
 
@@ -1532,4 +1531,4 @@ These examples are included in the npm tarball and must remain aligned with READ
 
 ### Runtime result contract clarification
 
-Runtime modules called by `@processengine/dataflows` MUST return canonical runtime result objects of shape `{ output: JsonValue, trace?: JsonValue[] }`. Bare values are invalid and MUST produce `DATAFLOW_RUNTIME_RESULT_INVALID`. This avoids ambiguity when a valid business object itself contains an `output` field. Child runtime `trace` is accepted for interop with family runtimes but is not merged into `DataflowOutput.trace` in v2; dataflow trace records only dataflow item execution.
+Runtime modules called by `@processengine/dataflows` MUST return canonical runtime result objects of shape `{ output: JsonValue, trace?: JsonValue[] }`. Bare values are invalid and MUST produce `DATAFLOW_RUNTIME_RESULT_INVALID`. This avoids ambiguity when a valid business object itself contains an `output` field. Child runtime `trace` is accepted for interop with family runtimes but is not merged into `DataflowOutput.trace` in v3; dataflow trace records only dataflow item execution.

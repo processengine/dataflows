@@ -4,7 +4,7 @@
   "title": "Interop example: mappings to decisions",
   "description": "The DECISIONS item reads facts written by the preceding MAPPINGS item through read-after-write semantics.",
   "schema": {
-    "$.context.data.facts.validation": {
+    "$.data.facts.validation": {
       "title": "Validation facts",
       "fields": {
         "errorCount": {
@@ -15,7 +15,7 @@
       },
       "description": "Facts produced by the mappings item and consumed by the decisions item in the same dataflow."
     },
-    "$.context.data.decisions.validation": {
+    "$.data.decisions.validation": {
       "title": "Validation decision",
       "fields": {
         "outcome": {
@@ -38,11 +38,11 @@
       "contract": {
         "input": {
           "refs": {
-            "$": "$.context.input.validation"
+            "$": "$.input.validation"
           }
         },
         "output": {
-          "ref": "$.context.data.facts.validation"
+          "ref": "$.data.facts.validation"
         }
       }
     },
@@ -55,11 +55,11 @@
       "contract": {
         "input": {
           "refs": {
-            "$": "$.context.data.facts.validation"
+            "$": "$.data.facts.validation"
           }
         },
         "output": {
-          "ref": "$.context.data.decisions.validation"
+          "ref": "$.data.decisions.validation"
         }
       }
     }

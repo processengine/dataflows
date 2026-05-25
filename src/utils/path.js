@@ -1,10 +1,10 @@
 /**
  * PathRef utilities for @processengine/dataflows
- * PathRef: starts with "$.", e.g. "$.context.data.facts.x"
+ * PathRef: starts with "$.", e.g. "$.data.facts.x"
  */
 
-const ALLOWED_READ_ROOTS = ['$.context.input', '$.context.effects', '$.context.data'];
-const WRITE_ROOT = '$.context.data.';
+const ALLOWED_READ_ROOTS = ['$.input', '$.data'];
+const WRITE_ROOT = '$.data.';
 const UNSAFE_OBJECT_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 
 export function isValidPathRef(ref) {
@@ -16,7 +16,10 @@ export function isWritablePath(ref) {
 }
 
 export function isReadablePath(ref) {
-  return isValidPathRef(ref) && ALLOWED_READ_ROOTS.some(root => ref === root || ref.startsWith(`${root}.`));
+  return isValidPathRef(ref) && (
+    ALLOWED_READ_ROOTS.some(root => ref === root || ref.startsWith(`${root}.`))
+    || isStepLatestReadablePath(ref)
+  );
 }
 
 export function isSchemaKey(ref) {
@@ -38,8 +41,14 @@ export function getByPath(obj, ref) {
   if (!isValidPathRef(ref)) return undefined;
   const segments = ref.slice(2).split('.');
   let cur = obj;
-  for (const seg of segments) {
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
     if (cur == null || typeof cur !== 'object') return undefined;
+    if (i === 2 && segments[0] === 'steps' && seg === 'latest') {
+      cur = resolveLatestStepExecution(cur);
+      if (cur === undefined) return undefined;
+      continue;
+    }
     cur = cur[seg];
   }
   return cur;
@@ -59,7 +68,7 @@ export function setByPath(obj, ref, value) {
 }
 
 /**
- * Dataflows v2 has one input contract shape: { refs: Record<InputTargetPath, PathRef> }.
+ * Dataflows v3 has one input contract shape: { refs: Record<InputTargetPath, PathRef> }.
  * The "$" target means "pass the resolved value as the whole child input" and
  * must not be mixed with named targets.
  */
@@ -77,6 +86,25 @@ export function inputTargetPathSegments(targetPath) {
 
 function isSafeObjectKey(segment) {
   return typeof segment === 'string' && segment.trim() !== '' && !UNSAFE_OBJECT_KEYS.has(segment);
+}
+
+function isStepLatestReadablePath(ref) {
+  const segments = ref.slice(2).split('.');
+  if (segments.length < 4) return false;
+  if (segments[0] !== 'steps') return false;
+  if (!isSafeObjectKey(segments[1])) return false;
+  if (segments[2] !== 'latest') return false;
+  if (segments[3] !== 'command' && segments[3] !== 'subflow') return false;
+  return segments.slice(4).every(isSafeObjectKey);
+}
+
+function resolveLatestStepExecution(stepRuntime) {
+  if (!stepRuntime || typeof stepRuntime !== 'object') return undefined;
+  const executions = Array.isArray(stepRuntime.executions) ? stepRuntime.executions : [];
+  if (stepRuntime.latestExecutionId) {
+    return executions.find(execution => execution?.executionId === stepRuntime.latestExecutionId);
+  }
+  return executions.length > 0 ? executions[executions.length - 1] : undefined;
 }
 
 export function setInputTargetPath(obj, targetPath, value) {

@@ -154,7 +154,7 @@ function assertPreparedItemWriteContract(artifact, item) {
   if (!isWritablePath(outputRef)) {
     throw new DataflowRuntimeError({
       code: 'DATAFLOW_WRITE_FORBIDDEN_PATH',
-      message: `prepared item output.ref must start with $.context.data.: ${outputRef}`,
+      message: `prepared item output.ref must start with $.data.: ${outputRef}`,
       details: { itemId: item?.id ?? null, ref: outputRef ?? null },
     });
   }
@@ -279,7 +279,7 @@ export function executeDataflowArtifact(artifact, input, options = {}) {
       }, trace);
     }
 
-    // 5. Runtime schema validation (v2 minimal declared field type assertion)
+    // 5. Runtime schema validation (v3 minimal declared field type assertion)
     if (runtimeSchemaValidation === 'assert') {
       const schemaNode = artifact.schema?.[item.contract.output.ref];
       if (schemaNode?.fields) {

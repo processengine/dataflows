@@ -21,7 +21,7 @@ const findClientDataflow = {
   version: '1.0.0',
   title: 'Оценка результата поиска клиента',
   schema: {
-    '$.context.data.facts.clientCandidates': { title: 'Факты по кандидатам клиента', description: 'Факты по кандидатам клиента data object.', fields: {
+    '$.data.facts.clientCandidates': { title: 'Факты по кандидатам клиента', description: 'Факты по кандидатам клиента data object.', fields: {
         hasMatches: schemaField('boolean'),
         clientMatchCount: schemaField('number'),
         hasMultipleClientCandidates: schemaField('boolean'),
@@ -29,7 +29,7 @@ const findClientDataflow = {
         resultStatus: schemaField('string'),
       },
     },
-    '$.context.data.decisions.findClientScenario': { title: 'Решение по поиску клиента', description: 'Решение по поиску клиента data object.', fields: { outcome: schemaField('string'), reason: schemaField('string') },
+    '$.data.decisions.findClientScenario': { title: 'Решение по поиску клиента', description: 'Решение по поиску клиента data object.', fields: { outcome: schemaField('string'), reason: schemaField('string') },
     },
   },
   pipeline: [
@@ -39,8 +39,8 @@ const findClientDataflow = {
       kind: 'facts',
       artefactId: 'mappings.fl_resident.client_candidates_facts',
       contract: {
-        input: { refs: { '$': '$.context.effects.find_client.waitResult.result' } },
-        output: { ref: '$.context.data.facts.clientCandidates' },
+        input: { refs: { '$': '$.steps.find_client.latest.command.result' } },
+        output: { ref: '$.data.facts.clientCandidates' },
       },
     },
     {
@@ -48,8 +48,8 @@ const findClientDataflow = {
       type: 'DECISIONS',
       artefactId: 'decisions.fl_resident.find_client_scenario',
       contract: {
-        input: { refs: { '$': '$.context.data.facts.clientCandidates' } },
-        output: { ref: '$.context.data.decisions.findClientScenario' },
+        input: { refs: { '$': '$.data.facts.clientCandidates' } },
+        output: { ref: '$.data.decisions.findClientScenario' },
       },
     },
   ],
@@ -58,18 +58,23 @@ const findClientDataflow = {
 // State mimicking a real process state after find_client EFFECT returned
 const makeRealState = (findClientResult) => ({
   processId: 'test-process-001',
-  id: 'fl-resident.registration',
-  version: '1.0.0',
+  flowId: 'fl-resident.registration',
+  flowVersion: '1.0.0',
+  stateVersion: 'flow5-state-v2',
   status: 'ACTIVE',
-  context: {
-    input: { applicantId: 'APP-001' },
-    effects: {
-      find_client: {
-        requestId: 'REQ-001',
-        waitResult: { result: findClientResult },
-      },
+  input: { applicantId: 'APP-001' },
+  data: {},
+  steps: {
+    find_client: {
+      latestExecutionId: 'exec-001',
+      executions: [{
+        executionId: 'exec-001',
+        command: {
+          requestId: 'REQ-001',
+          result: findClientResult,
+        },
+      }],
     },
-    data: {},
   },
 });
 
@@ -82,9 +87,9 @@ test('real dataflow: prepares correctly', () => {
   const artifact = prepareDataflow(findClientDataflow);
   assert.equal(artifact.artifactType, 'dataflow');
   assert.equal(artifact.items.length, 2);
-  assert.equal(artifact.readSet[0], '$.context.effects.find_client.waitResult.result');
-  assert.ok(artifact.writeSet.includes('$.context.data.facts.clientCandidates'));
-  assert.ok(artifact.writeSet.includes('$.context.data.decisions.findClientScenario'));
+  assert.equal(artifact.readSet[0], '$.steps.find_client.latest.command.result');
+  assert.ok(artifact.writeSet.includes('$.data.facts.clientCandidates'));
+  assert.ok(artifact.writeSet.includes('$.data.decisions.findClientScenario'));
 });
 
 test('real dataflow: executes — found one own-service client → FOUND_OWN_SERVICE', () => {
@@ -123,12 +128,12 @@ test('real dataflow: executes — found one own-service client → FOUND_OWN_SER
 
   assert.equal(result.writes.length, 2);
 
-  const factsWrite = result.writes.find(w => w.ref === '$.context.data.facts.clientCandidates');
+  const factsWrite = result.writes.find(w => w.ref === '$.data.facts.clientCandidates');
   assert.ok(factsWrite);
   assert.equal(factsWrite.value.hasOwnServiceClient, true);
   assert.equal(factsWrite.value.clientMatchCount, 1);
 
-  const decisionWrite = result.writes.find(w => w.ref === '$.context.data.decisions.findClientScenario');
+  const decisionWrite = result.writes.find(w => w.ref === '$.data.decisions.findClientScenario');
   assert.ok(decisionWrite);
   assert.equal(decisionWrite.value.outcome, 'FOUND_OWN_SERVICE');
 });
@@ -160,7 +165,7 @@ test('real dataflow: executes — no clients found → NOT_FOUND', () => {
   };
 
   const result = executeDataflow(artifact, { state: makeRealState(findClientResult), registries });
-  const decisionWrite = result.writes.find(w => w.ref === '$.context.data.decisions.findClientScenario');
+  const decisionWrite = result.writes.find(w => w.ref === '$.data.decisions.findClientScenario');
   assert.equal(decisionWrite.value.outcome, 'NOT_FOUND');
 });
 
@@ -207,7 +212,7 @@ test('real dataflow: DataflowOutput survives JSON serialization → semantics.re
   const restored = JSON.parse(serialized);
 
   assert.equal(restored.writes.length, 2);
-  assert.equal(restored.writes[0].ref, '$.context.data.facts.clientCandidates');
-  assert.equal(restored.writes[1].ref, '$.context.data.decisions.findClientScenario');
+  assert.equal(restored.writes[0].ref, '$.data.facts.clientCandidates');
+  assert.equal(restored.writes[1].ref, '$.data.decisions.findClientScenario');
   // No host cleanup needed — transport-safe by contract
 });
